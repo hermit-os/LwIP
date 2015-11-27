@@ -54,6 +54,12 @@
 #define DHCP_DOES_ARP_CHECK	0
 
 /**
+ * LWIP_DNS==1: Turn on DNS module. UDP must be available for DNS
+ * transport.
+ */
+#define LWIP_DNS		1
+
+/**
  * ETHARP_TRUST_IP_MAC==1: Incoming IP packets cause the ARP table to be
  * updated with the source MAC and IP addresses supplied in the packet.
  * You may want to disable this if you do not trust LAN peers to have the
