@@ -79,7 +79,7 @@ typedef size_t mem_ptr_t;
 #define ERRNO
 #define errno per_core(current_task)->lwip_err
 
-/* prototypes for printf() and abort() */
+/* prototypes for printf() and do_abort() */
 #include <hermit/stdio.h>
 #include <hermit/stdlib.h>
 
@@ -87,7 +87,7 @@ typedef size_t mem_ptr_t;
 #define LWIP_PLATFORM_DIAG(x)	do {kprintf x;} while(0)
 
 #define LWIP_PLATFORM_ASSERT(x) do {kprintf("Assertion \"%s\" failed at line %d in %s\n", \
-                                     x, __LINE__, __FILE__); abort();} while(0)
+                                     x, __LINE__, __FILE__); do_abort();} while(0)
 
 #if NO_SYS
 typedef uint32_t sys_prot_t;

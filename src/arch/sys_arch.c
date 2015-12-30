@@ -72,19 +72,6 @@ void sys_init(void)
 #endif
 }
 
-/**
- * Sleep for some ms. Timeouts are NOT processed while sleeping.
- *
- * @param ms number of milliseconds to sleep
- */
-void sys_msleep(u32_t ms)
-{
-	if (ms * TIMER_FREQ / 1000 > 0)
-		timer_wait(ms * TIMER_FREQ / 1000);
-	else if (ms > 0)
-		udelay(ms * 1000);
-}
-
 /* sys_thread_new(): Spawns a new thread with given attributes as supported
  * Note: In HermitCore this is realized as kernel tasks
  */
