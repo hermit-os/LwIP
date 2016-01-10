@@ -428,52 +428,52 @@ int recv(int s, void *mem, size_t len, int flags)
 {
 	int ret = lwip_recv(s & ~LWIP_FD_BIT, mem, len, flags);
 
-	if (ret)
+	if (ret < 0)
 	{
 		*libc_errno() = errno;
 		return -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen)
 {
 	int ret = lwip_recvfrom(s & ~LWIP_FD_BIT, mem, len, flags, from, fromlen);
 
-	if (ret)
+	if (ret < 0)
 	{
 		*libc_errno() = errno;
 		return -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 int send(int s, const void *dataptr, size_t size, int flags)
 {
 	int ret = lwip_send(s & ~LWIP_FD_BIT, dataptr, size, flags);
 
-	if (ret)
+	if (ret < 0)
 	{
 		*libc_errno() = errno;
 		return -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen)
 {
 	int ret = lwip_sendto(s & ~LWIP_FD_BIT, dataptr, size, flags, to, tolen);
 
-	if (ret)
+	if (ret < 0)
 	{
 		*libc_errno() = errno;
 		return -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 int socket(int domain, int type, int protocol)
@@ -501,7 +501,7 @@ int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, st
 		return -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 #endif /* !NO_SYS */
