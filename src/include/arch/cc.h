@@ -121,6 +121,19 @@ struct sockaddr;
 struct timeval;
 typedef u32_t socklen_t;
 
+/* FD_SET used for lwip_select */
+#undef  FD_SETSIZE
+/* Make FD_SETSIZE match NUM_SOCKETS in socket.c */
+#define FD_SETSIZE    MEMP_NUM_NETCONN
+#define FD_SET(n, p)  ((p)->fd_bits[((n) & ~LWIP_FD_BIT)/8] |=  (1 << (((n) & ~LWIP_FD_BIT) & 7)))
+#define FD_CLR(n, p)  ((p)->fd_bits[((n) & ~LWIP_FD_BIT)/8] &= ~(1 << (((n) & ~LWIP_FD_BIT) & 7)))
+#define FD_ISSET(n,p) ((p)->fd_bits[((n) & ~LWIP_FD_BIT)/8] &   (1 << (((n) & ~LWIP_FD_BIT) & 7)))
+#define FD_ZERO(p)    memset((void*)(p),0,sizeof(*(p)))
+
+typedef struct fd_set {
+	unsigned char fd_bits [(FD_SETSIZE+7)/8];
+} fd_set;
+
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int bind(int s, const struct sockaddr *name, socklen_t namelen);
 int getpeername (int s, struct sockaddr *name, socklen_t *namelen);
