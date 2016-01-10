@@ -31,6 +31,8 @@
 #include "lwip/debug.h"
 #include "lwip/sys.h"
 #include "lwip/stats.h"
+#include "lwip/sockets.h"
+#include "lwip/err.h"
 
 #ifndef TRUE
 #define TRUE	1
@@ -309,5 +311,197 @@ void sys_arch_unprotect(sys_prot_t pval)
 }
 #endif
 #endif
+
+int* __getreent(void);
+
+static inline int* libc_errno(void)
+{
+	return __getreent();
+}
+
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+{
+	int fd = lwip_accept(s & ~LWIP_FD_BIT, addr, addrlen);
+
+	if (fd < 0)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return fd | LWIP_FD_BIT;
+}
+
+int bind(int s, const struct sockaddr *name, socklen_t namelen)
+{
+	int ret = lwip_bind(s & ~LWIP_FD_BIT, name, namelen);
+
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int getpeername(int s, struct sockaddr *name, socklen_t *namelen)
+{
+	int ret = lwip_getpeername(s & ~LWIP_FD_BIT, name, namelen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int getsockname(int s, struct sockaddr *name, socklen_t *namelen)
+{
+	int ret = lwip_getsockname(s & ~LWIP_FD_BIT, name, namelen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
+{
+	int ret = lwip_getsockopt(s & ~LWIP_FD_BIT, level, optname, optval, optlen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen)
+{
+	int ret = lwip_setsockopt(s & ~LWIP_FD_BIT, level, optname, optval, optlen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int connect(int s, const struct sockaddr *name, socklen_t namelen)
+{
+	int ret = lwip_connect(s & ~LWIP_FD_BIT, name, namelen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int listen(int s, int backlog)
+{
+	int ret = lwip_listen(s & ~LWIP_FD_BIT, backlog);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int recv(int s, void *mem, size_t len, int flags)
+{
+	int ret = lwip_recv(s & ~LWIP_FD_BIT, mem, len, flags);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen)
+{
+	int ret = lwip_recvfrom(s & ~LWIP_FD_BIT, mem, len, flags, from, fromlen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int send(int s, const void *dataptr, size_t size, int flags)
+{
+	int ret = lwip_send(s & ~LWIP_FD_BIT, dataptr, size, flags);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen)
+{
+	int ret = lwip_sendto(s & ~LWIP_FD_BIT, dataptr, size, flags, to, tolen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int socket(int domain, int type, int protocol)
+{
+	int fd = lwip_socket(domain, type, protocol);
+
+	if (fd < 0)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return fd | LWIP_FD_BIT;
+}
+
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout)
+{
+	int ret;
+
+	ret = lwip_select(maxfdp1, readset, writeset, exceptset, timeout);
+
+	if (ret < 0)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
 
 #endif /* !NO_SYS */

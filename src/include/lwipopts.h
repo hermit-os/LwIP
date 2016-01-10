@@ -3,7 +3,7 @@
 #ifndef __LWIPOPTS_H__
 #define __LWIPOPTS_H_
 
-#include <hermit/stddef.h>
+#include <stddef.h>
 
 /**
  * SYS_LIGHTWEIGHT_PROT==1: if you want inter-task protection for certain
@@ -211,6 +211,23 @@
  */
 #define MEMP_NUM_NETCONN		32
 
+#ifndef __KERNEL__
+#define LWIP_TIMEVAL_PRIVATE		0
+#endif
+
+/**
+ * LWIP_COMPAT_SOCKETS==1: Enable BSD-style sockets functions names.
+ * (only used if you use sockets.c)
+ */
+#define LWIP_COMPAT_SOCKETS		0
+
+/**
+ * LWIP_POSIX_SOCKETS_IO_NAMES==1: Enable POSIX-style sockets functions names.
+ * Disable this option if you use a POSIX operating system that uses the same
+ * names (read, write & close). (only used if you use sockets.c)
+ */
+#define LWIP_POSIX_SOCKETS_IO_NAMES	0
+
 #if 0
 /**
  * CHECKSUM_CHECK_IP==1: Check checksums in software for incoming IP packets.
@@ -244,7 +261,6 @@
 #define SOCKETS_DEBUG		LWIP_DBG_OFF
 #define PBUF_DEBUG		LWIP_DBG_OFF
 
-// we need this feature to avoid memcpy operation between user- and kernel space
 #define LWIP_TCPIP_CORE_LOCKING		1
 
 //#define LWIP_TCPIP_THREAD_ALIVE()	kputs("TCPIP thread is alive!\n")
