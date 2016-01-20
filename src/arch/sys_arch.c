@@ -32,6 +32,7 @@
 #include "lwip/sys.h"
 #include "lwip/stats.h"
 #include "lwip/sockets.h"
+#include "lwip/netdb.h"
 #include "lwip/err.h"
 
 #ifndef TRUE
@@ -319,6 +320,8 @@ static inline int* libc_errno(void)
 	return __getreent();
 }
 
+#if LWIP_SOCKET
+
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
 	int fd = lwip_accept(s & ~LWIP_FD_BIT, addr, addrlen);
@@ -503,5 +506,31 @@ int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, st
 
 	return ret;
 }
+
+#if LWIP_DNS
+
+struct hostent *gethostbyname(const char* name)
+{
+	return lwip_gethostbyname(name);
+}
+
+int gethostbyname_r(const char *name, struct hostent *ret, char *buf, size_t buflen, struct hostent **result, int *h_errnop)
+{
+	return lwip_gethostbyname_r(name, ret, buf, buflen, result, h_errnop);
+}
+
+int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res)
+{
+	return lwip_getaddrinfo(node, service, hints, res);
+}
+
+void freeaddrinfo(struct addrinfo *res)
+{
+	lwip_freeaddrinfo(res);
+}
+
+#endif /* LWIP_DNS */
+
+#endif /* LWIP_SOCKET */
 
 #endif /* !NO_SYS */

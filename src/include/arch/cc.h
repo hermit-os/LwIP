@@ -34,7 +34,9 @@
 
 /* Include some files for defining library routines */
 #include <string.h>
-//#include <sys/time.h>
+#ifndef __KERNEL__
+#include <stdint.h>
+#endif
 
 /* Define platform endianness */
 #ifndef BYTE_ORDER
@@ -119,6 +121,8 @@ static inline void sys_arch_unprotect(sys_prot_t pval)
 #ifndef __KERNEL__
 struct sockaddr;
 struct timeval;
+struct hostent;
+struct addrinfo;
 typedef u32_t socklen_t;
 
 /* FD_SET used for lwip_select */
@@ -148,6 +152,10 @@ int send(int s, const void *dataptr, size_t size, int flags);
 int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen);
 int socket(int domain, int type, int protocol);
 int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
+struct hostent *gethostbyname(const char* name);
+struct hostent *gethostbyaddr(const void *addr, socklen_t len, int type);
+int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
+void freeaddrinfo(struct addrinfo *res);
 #endif
 
 #endif /* __ARCH_CC_H__ */
