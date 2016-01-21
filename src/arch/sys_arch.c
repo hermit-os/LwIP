@@ -507,6 +507,16 @@ int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, st
 	return ret;
 }
 
+int fcntl(int s, int cmd, int val)
+{
+	return lwip_fcntl(s, cmd, val);
+}
+
+int shutdown(int socket, int how)
+{
+	return lwip_shutdown(socket, how);
+}
+
 #if LWIP_DNS
 
 struct hostent *gethostbyname(const char* name)

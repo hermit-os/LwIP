@@ -134,6 +134,9 @@ typedef u32_t socklen_t;
 #define FD_ISSET(n,p) ((p)->fd_bits[((n) & ~LWIP_FD_BIT)/8] &   (1 << (((n) & ~LWIP_FD_BIT) & 7)))
 #define FD_ZERO(p)    memset((void*)(p),0,sizeof(*(p)))
 
+/* Maximum queue length specifiable by listen.  */
+#define SOMAXCONN	1
+
 typedef struct fd_set {
 	unsigned char fd_bits [(FD_SETSIZE+7)/8];
 } fd_set;
@@ -152,6 +155,8 @@ int send(int s, const void *dataptr, size_t size, int flags);
 int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen);
 int socket(int domain, int type, int protocol);
 int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout);
+int shutdown(int socket, int how);
+//int fcntl(int s, int cmd, int val);
 struct hostent *gethostbyname(const char* name);
 struct hostent *gethostbyaddr(const void *addr, socklen_t len, int type);
 int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
