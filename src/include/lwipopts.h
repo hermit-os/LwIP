@@ -81,7 +81,13 @@
  * options processing. Note that TCP_KEEPIDLE and TCP_KEEPINTVL have to be set
  * in seconds. (does not require sockets.c, and will affect tcp.c)
  */
-#define LWIP_TCP_KEEPALIVE	1
+#define LWIP_TCP_KEEPALIVE	0
+
+/**
+ * LWIP_TCPIP_TIMEOUT==1: Enable tcpip_timeout/tcpip_untimeout tod create
+ * timers running in tcpip_thread from another thread.
+ */
+#define LWIP_TCPIP_TIMEOUT	0
 
 /**
  * LWIP_STATS_DISPLAY==1: Compile in the statistics output functions.
