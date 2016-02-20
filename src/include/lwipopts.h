@@ -16,11 +16,7 @@
  * NO_SYS==1: Provides VERY minimal functionality. Otherwise,
  * use lwIP facilities.
  */
-#ifdef CONFIG_TICKLESS
-#define NO_SYS			1
-#else
 #define NO_SYS			0
-#endif
 
 /**
  * LWIP_RAW==1: Enable application layer to hook into the IP layer itself.
@@ -133,7 +129,7 @@
 /**
  * LWIP_HAVE_LOOPIF==1: Support loop interface (127.0.0.1) and loopif.c
  */
-#define LWIP_HAVE_LOOPIF	1
+#define LWIP_HAVE_LOOPIF	0
 
 /**
  * LWIP_NETIF_LOOPBACK==1: Support sending packets with a destination IP
@@ -266,8 +262,10 @@
 #define TIMERS_DEBUG		LWIP_DBG_OFF
 #define SOCKETS_DEBUG		LWIP_DBG_OFF
 #define PBUF_DEBUG		LWIP_DBG_OFF
+#define API_LIB_DEBUG		LWIP_DBG_OFF
 
 #define LWIP_TCPIP_CORE_LOCKING		1
+#define LWIP_TCPIP_CORE_LOCKING_INPUT	0
 
 //#define LWIP_TCPIP_THREAD_ALIVE()	kputs("TCPIP thread is alive!\n")
 #endif
