@@ -265,7 +265,7 @@
 #define API_LIB_DEBUG		LWIP_DBG_OFF
 
 #define LWIP_TCPIP_CORE_LOCKING		1
-#define LWIP_TCPIP_CORE_LOCKING_INPUT	1
+#define LWIP_TCPIP_CORE_LOCKING_INPUT	0
 
 //#define LWIP_TCPIP_THREAD_ALIVE()	kputs("TCPIP thread is alive!\n")
 #endif
