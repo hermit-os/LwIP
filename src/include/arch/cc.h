@@ -161,6 +161,7 @@ struct hostent *gethostbyname(const char* name);
 struct hostent *gethostbyaddr(const void *addr, socklen_t len, int type);
 int getaddrinfo(const char *node, const char *service, const struct addrinfo *hints, struct addrinfo **res);
 void freeaddrinfo(struct addrinfo *res);
+int gethostname(char *name, size_t len);
 #endif
 
 #endif /* __ARCH_CC_H__ */

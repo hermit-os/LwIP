@@ -521,6 +521,14 @@ int shutdown(int socket, int how)
 
 #if LWIP_DNS
 
+// TODO: replace dummy function
+int gethostname(char *name, size_t len)
+{
+	strncpy(name, "hermit", len);
+
+	return 0;
+}
+
 struct hostent *gethostbyname(const char* name)
 {
 	return lwip_gethostbyname(name);
