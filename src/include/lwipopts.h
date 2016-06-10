@@ -27,17 +27,17 @@
 /**
  * LWIP_SOCKET==1: Enable Socket API (require to use sockets.c)
  */
-#define LWIP_SOCKET		!NO_SYS
+#define LWIP_SOCKET		!(NO_SYS == 1)
 
 /**
  * LWIP_NETCONN==1: Enable Netconn API (require to use api_lib.c)
  */
-#define LWIP_NETCONN		!NO_SYS
+#define LWIP_NETCONN		!(NO_SYS == 1)
 
 /**
  * LWIP_NETIF_API==1: Support netif api (in netifapi.c)
  */
-#define LWIP_NETIF_API		!NO_SYS
+#define LWIP_NETIF_API		!(NO_SYS == 1)
 
 /**
  * LWIP_DHCP==1: Enable DHCP module.
@@ -130,6 +130,21 @@
  * LWIP_HAVE_LOOPIF==1: Support loop interface (127.0.0.1) and loopif.c
  */
 #define LWIP_HAVE_LOOPIF	0
+
+/**
+ * LWIP_NETIF_LOOPBACK_MULTITHREADING: Indicates whether threading is enabled in
+ * the system, as netifs must change how they behave depending on this setting
+ * for the LWIP_NETIF_LOOPBACK option to work.
+ * Setting this is needed to avoid reentering non-reentrant functions like
+ * tcp_input().
+ *    LWIP_NETIF_LOOPBACK_MULTITHREADING==1: Indicates that the user is using a
+ *       multithreaded environment like tcpip.c. In this case, netif->input()
+ *       is called directly.
+ *    LWIP_NETIF_LOOPBACK_MULTITHREADING==0: Indicates a polling (or NO_SYS) setup.
+ *       The packets are put on a list and netif_poll() must be called in
+ *       the main application loop.
+ */
+#define LWIP_NETIF_LOOPBACK_MULTITHREADING	!(NO_SYS == 1)
 
 /**
  * LWIP_NETIF_LOOPBACK==1: Support sending packets with a destination IP
