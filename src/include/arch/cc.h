@@ -72,7 +72,7 @@ typedef size_t mem_ptr_t;
 #define PACK_STRUCT_BEGIN
 #define PACK_STRUCT_END
 
-#define MEM_ALIGNMENT 4
+#define MEM_ALIGNMENT 8
 #define ETH_PAD_SIZE  2
 
 #define LWIP_CHKSUM_ALGORITHM	2
