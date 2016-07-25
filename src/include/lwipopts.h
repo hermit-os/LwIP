@@ -42,7 +42,7 @@
 /**
  * LWIP_DHCP==1: Enable DHCP module.
  */
-#define LWIP_DHCP 		0
+#define LWIP_DHCP 		1
 
 /**
  * DHCP_DOES_ARP_CHECK==1: Do an ARP check on the offered address.
