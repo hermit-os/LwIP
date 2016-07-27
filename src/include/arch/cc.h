@@ -72,10 +72,14 @@ typedef size_t mem_ptr_t;
 #define PACK_STRUCT_BEGIN
 #define PACK_STRUCT_END
 
+#define LWIP_PLATFORM_BYTESWAP 1
+#define LWIP_PLATFORM_HTONS(x) ( (((u16_t)(x))>>8) | (((x)&0xFF)<<8) )
+#define LWIP_PLATFORM_HTONL(x) ( (((u32_t)(x))>>24) | (((x)&0xFF0000)>>8) | (((x)&0xFF00)<<8) | (((x)&0xFF)<<24) )
+
 #define MEM_ALIGNMENT 8
 #define ETH_PAD_SIZE  2
 
-#define LWIP_CHKSUM_ALGORITHM	2
+#define LWIP_CHKSUM_ALGORITHM	3
 
 /* define errno to determine error code */
 #define ERRNO
