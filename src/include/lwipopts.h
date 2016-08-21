@@ -245,7 +245,7 @@
  */
 #define LWIP_POSIX_SOCKETS_IO_NAMES	0
 
-#if 0
+#if 1
 /**
  * CHECKSUM_CHECK_IP==1: Check checksums in software for incoming IP packets.
  */
