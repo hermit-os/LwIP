@@ -22,7 +22,7 @@
  * LWIP_RAW==1: Enable application layer to hook into the IP layer itself.
  * LWIP_RAW==0: speeds up input processing
  */
-#define LWIP_RAW		1
+#define LWIP_RAW		0
 
 /**
  * LWIP_SOCKET==1: Enable Socket API (require to use sockets.c)
