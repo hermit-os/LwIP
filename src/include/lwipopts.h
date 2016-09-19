@@ -129,7 +129,7 @@
 /**
  * LWIP_HAVE_LOOPIF==1: Support loop interface (127.0.0.1) and loopif.c
  */
-#define LWIP_HAVE_LOOPIF	0
+#define LWIP_HAVE_LOOPIF	1
 
 /**
  * LWIP_NETIF_LOOPBACK_MULTITHREADING: Indicates whether threading is enabled in
@@ -261,6 +261,11 @@
  */
 #define CHECKSUM_CHECK_TCP		0
 #endif
+
+/**
+ * SO_REUSE==1: Enable SO_REUSEADDR option.
+ */
+#define SO_REUSE			1
 
 /* DEBUG options */
 #define LWIP_DEBUG		1
