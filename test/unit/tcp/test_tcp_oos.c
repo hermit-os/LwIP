@@ -1,6 +1,6 @@
 #include "test_tcp_oos.h"
 
-#include "lwip/tcp_impl.h"
+#include "lwip/priv/tcp_priv.h"
 #include "lwip/stats.h"
 #include "tcp_helper.h"
 
@@ -36,6 +36,7 @@ static int tcp_oos_count(struct tcp_pcb* pcb)
   return num;
 }
 
+#if TCP_OOSEQ_MAX_PBUFS && (TCP_OOSEQ_MAX_PBUFS < ((TCP_WND / TCP_MSS) + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_ENCAPSULATION_HLEN + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN))
 /** Get the numbers of pbufs on the ooseq list */
 static int tcp_oos_pbuf_count(struct tcp_pcb* pcb)
 {
@@ -47,6 +48,7 @@ static int tcp_oos_pbuf_count(struct tcp_pcb* pcb)
   }
   return num;
 }
+#endif
 
 /** Get the seqno of a segment (by index) on the ooseq list
  *
@@ -127,6 +129,8 @@ static void
 tcp_oos_teardown(void)
 {
   tcp_remove_all();
+  netif_list = NULL;
+  netif_default = NULL;
 }
 
 
@@ -146,7 +150,7 @@ START_TEST(test_tcp_recv_ooseq_FIN_OOSEQ)
      5,  6,  7,  8,
      9, 10, 11, 12,
     13, 14, 15, 16};
-  ip_addr_t remote_ip, local_ip;
+  ip_addr_t remote_ip, local_ip, netmask;
   u16_t data_len;
   u16_t remote_port = 0x100, local_port = 0x101;
   struct netif netif;
@@ -154,8 +158,10 @@ START_TEST(test_tcp_recv_ooseq_FIN_OOSEQ)
 
   /* initialize local vars */
   memset(&netif, 0, sizeof(netif));
-  IP4_ADDR(&local_ip, 192, 168, 1, 1);
-  IP4_ADDR(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
   data_len = sizeof(data);
   /* initialize counter struct */
   memset(&counters, 0, sizeof(counters));
@@ -266,9 +272,9 @@ START_TEST(test_tcp_recv_ooseq_FIN_OOSEQ)
   }
 
   /* make sure the pcb is freed */
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 1);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
   tcp_abort(pcb);
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 0);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
 }
 END_TEST
 
@@ -286,7 +292,7 @@ START_TEST(test_tcp_recv_ooseq_FIN_INSEQ)
      5,  6,  7,  8,
      9, 10, 11, 12,
     13, 14, 15, 16};
-  ip_addr_t remote_ip, local_ip;
+  ip_addr_t remote_ip, local_ip, netmask;
   u16_t data_len;
   u16_t remote_port = 0x100, local_port = 0x101;
   struct netif netif;
@@ -294,8 +300,10 @@ START_TEST(test_tcp_recv_ooseq_FIN_INSEQ)
 
   /* initialize local vars */
   memset(&netif, 0, sizeof(netif));
-  IP4_ADDR(&local_ip, 192, 168, 1, 1);
-  IP4_ADDR(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
   data_len = sizeof(data);
   /* initialize counter struct */
   memset(&counters, 0, sizeof(counters));
@@ -440,13 +448,13 @@ START_TEST(test_tcp_recv_ooseq_FIN_INSEQ)
   }
 
   /* make sure the pcb is freed */
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 1);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
   tcp_abort(pcb);
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 0);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
 }
 END_TEST
 
-static char data_full_wnd[TCP_WND];
+static char data_full_wnd[TCP_WND + TCP_MSS];
 
 /** create multiple segments and pass them to tcp_input with the first segment missing
  * to simulate overruning the rxwin with ooseq queueing enabled */
@@ -457,20 +465,22 @@ START_TEST(test_tcp_recv_ooseq_overrun_rxwin)
   struct test_tcp_counters counters;
   struct tcp_pcb* pcb;
   struct pbuf *pinseq, *p_ovr;
-  ip_addr_t remote_ip, local_ip;
+  ip_addr_t remote_ip, local_ip, netmask;
   u16_t remote_port = 0x100, local_port = 0x101;
   struct netif netif;
   int datalen = 0;
   int datalen2;
 
-  for(i = 0; i < sizeof(data_full_wnd); i++) {
+  for(i = 0; i < (int)sizeof(data_full_wnd); i++) {
     data_full_wnd[i] = (char)i;
   }
 
   /* initialize local vars */
   memset(&netif, 0, sizeof(netif));
-  IP4_ADDR(&local_ip, 192, 168, 1, 1);
-  IP4_ADDR(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
   /* initialize counter struct */
   memset(&counters, 0, sizeof(counters));
   counters.expected_data_len = TCP_WND;
@@ -532,9 +542,102 @@ START_TEST(test_tcp_recv_ooseq_overrun_rxwin)
   EXPECT(pcb->ooseq == NULL);
 
   /* make sure the pcb is freed */
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 1);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
   tcp_abort(pcb);
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 0);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
+#endif /* !TCP_OOSEQ_MAX_BYTES && !TCP_OOSEQ_MAX_PBUFS */
+  LWIP_UNUSED_ARG(_i);
+}
+END_TEST
+
+/** similar to above test, except seqno starts near the max rxwin */
+START_TEST(test_tcp_recv_ooseq_overrun_rxwin_edge)
+{
+#if !TCP_OOSEQ_MAX_BYTES && !TCP_OOSEQ_MAX_PBUFS
+  int i, k;
+  struct test_tcp_counters counters;
+  struct tcp_pcb* pcb;
+  struct pbuf *pinseq, *p_ovr;
+  ip_addr_t remote_ip, local_ip, netmask;
+  u16_t remote_port = 0x100, local_port = 0x101;
+  struct netif netif;
+  int datalen = 0;
+  int datalen2;
+
+  for(i = 0; i < (int)sizeof(data_full_wnd); i++) {
+    data_full_wnd[i] = (char)i;
+  }
+
+  /* initialize local vars */
+  memset(&netif, 0, sizeof(netif));
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
+  /* initialize counter struct */
+  memset(&counters, 0, sizeof(counters));
+  counters.expected_data_len = TCP_WND;
+  counters.expected_data = data_full_wnd;
+
+  /* create and initialize the pcb */
+  pcb = test_tcp_new_counters_pcb(&counters);
+  EXPECT_RET(pcb != NULL);
+  tcp_set_state(pcb, ESTABLISHED, &local_ip, &remote_ip, local_port, remote_port);
+  pcb->rcv_nxt = 0xffffffff - (TCP_WND / 2);
+
+  /* create segments */
+  /* pinseq is sent as last segment! */
+  pinseq = tcp_create_rx_segment(pcb, &data_full_wnd[0],  TCP_MSS, 0, 0, TCP_ACK);
+
+  for(i = TCP_MSS, k = 0; i < TCP_WND; i += TCP_MSS, k++) {
+    int count, expected_datalen;
+    struct pbuf *p = tcp_create_rx_segment(pcb, &data_full_wnd[TCP_MSS*(k+1)],
+                                           TCP_MSS, TCP_MSS*(k+1), 0, TCP_ACK);
+    EXPECT_RET(p != NULL);
+    /* pass the segment to tcp_input */
+    test_tcp_input(p, &netif);
+    /* check if counters are as expected */
+    EXPECT(counters.close_calls == 0);
+    EXPECT(counters.recv_calls == 0);
+    EXPECT(counters.recved_bytes == 0);
+    EXPECT(counters.err_calls == 0);
+    /* check ooseq queue */
+    count = tcp_oos_count(pcb);
+    EXPECT_OOSEQ(count == k+1);
+    datalen = tcp_oos_tcplen(pcb);
+    if (i + TCP_MSS < TCP_WND) {
+      expected_datalen = (k+1)*TCP_MSS;
+    } else {
+      expected_datalen = TCP_WND - TCP_MSS;
+    }
+    if (datalen != expected_datalen) {
+      EXPECT_OOSEQ(datalen == expected_datalen);
+    }
+  }
+
+  /* pass in one more segment, cleary overrunning the rxwin */
+  p_ovr = tcp_create_rx_segment(pcb, &data_full_wnd[TCP_MSS*(k+1)], TCP_MSS, TCP_MSS*(k+1), 0, TCP_ACK);
+  EXPECT_RET(p_ovr != NULL);
+  /* pass the segment to tcp_input */
+  test_tcp_input(p_ovr, &netif);
+  /* check if counters are as expected */
+  EXPECT(counters.close_calls == 0);
+  EXPECT(counters.recv_calls == 0);
+  EXPECT(counters.recved_bytes == 0);
+  EXPECT(counters.err_calls == 0);
+  /* check ooseq queue */
+  EXPECT_OOSEQ(tcp_oos_count(pcb) == k);
+  datalen2 = tcp_oos_tcplen(pcb);
+  EXPECT_OOSEQ(datalen == datalen2);
+
+  /* now pass inseq */
+  test_tcp_input(pinseq, &netif);
+  EXPECT(pcb->ooseq == NULL);
+
+  /* make sure the pcb is freed */
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
+  tcp_abort(pcb);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
 #endif /* !TCP_OOSEQ_MAX_BYTES && !TCP_OOSEQ_MAX_PBUFS */
   LWIP_UNUSED_ARG(_i);
 }
@@ -542,12 +645,12 @@ END_TEST
 
 START_TEST(test_tcp_recv_ooseq_max_bytes)
 {
-#if TCP_OOSEQ_MAX_BYTES && (TCP_OOSEQ_MAX_BYTES < (TCP_WND + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN))
+#if TCP_OOSEQ_MAX_BYTES && (TCP_OOSEQ_MAX_BYTES < (TCP_WND + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_ENCAPSULATION_HLEN + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN))
   int i, k;
   struct test_tcp_counters counters;
   struct tcp_pcb* pcb;
   struct pbuf *p_ovr;
-  ip_addr_t remote_ip, local_ip;
+  ip_addr_t remote_ip, local_ip, netmask;
   u16_t remote_port = 0x100, local_port = 0x101;
   struct netif netif;
   int datalen = 0;
@@ -559,8 +662,10 @@ START_TEST(test_tcp_recv_ooseq_max_bytes)
 
   /* initialize local vars */
   memset(&netif, 0, sizeof(netif));
-  IP4_ADDR(&local_ip, 192, 168, 1, 1);
-  IP4_ADDR(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
   /* initialize counter struct */
   memset(&counters, 0, sizeof(counters));
   counters.expected_data_len = TCP_WND;
@@ -611,22 +716,22 @@ START_TEST(test_tcp_recv_ooseq_max_bytes)
   EXPECT_OOSEQ(datalen2 == ((i-1) * TCP_MSS));
 
   /* make sure the pcb is freed */
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 1);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
   tcp_abort(pcb);
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 0);
-#endif /* TCP_OOSEQ_MAX_BYTES && (TCP_OOSEQ_MAX_BYTES < (TCP_WND + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN)) */
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
+#endif /* TCP_OOSEQ_MAX_BYTES && (TCP_OOSEQ_MAX_BYTES < (TCP_WND + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_ENCAPSULATION_HLEN + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN)) */
   LWIP_UNUSED_ARG(_i);
 }
 END_TEST
 
 START_TEST(test_tcp_recv_ooseq_max_pbufs)
 {
-#if TCP_OOSEQ_MAX_PBUFS && (TCP_OOSEQ_MAX_PBUFS < ((TCP_WND / TCP_MSS) + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN))
+#if TCP_OOSEQ_MAX_PBUFS && (TCP_OOSEQ_MAX_PBUFS < ((TCP_WND / TCP_MSS) + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_ENCAPSULATION_HLEN + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN))
   int i;
   struct test_tcp_counters counters;
   struct tcp_pcb* pcb;
   struct pbuf *p_ovr;
-  ip_addr_t remote_ip, local_ip;
+  ip_addr_t remote_ip, local_ip, netmask;
   u16_t remote_port = 0x100, local_port = 0x101;
   struct netif netif;
   int datalen = 0;
@@ -638,8 +743,10 @@ START_TEST(test_tcp_recv_ooseq_max_pbufs)
 
   /* initialize local vars */
   memset(&netif, 0, sizeof(netif));
-  IP4_ADDR(&local_ip, 192, 168, 1, 1);
-  IP4_ADDR(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
   /* initialize counter struct */
   memset(&counters, 0, sizeof(counters));
   counters.expected_data_len = TCP_WND;
@@ -690,10 +797,10 @@ START_TEST(test_tcp_recv_ooseq_max_pbufs)
   EXPECT_OOSEQ(datalen2 == (i-1));
 
   /* make sure the pcb is freed */
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 1);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
   tcp_abort(pcb);
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 0);
-#endif /* TCP_OOSEQ_MAX_PBUFS && (TCP_OOSEQ_MAX_BYTES < (TCP_WND + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN)) */
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
+#endif /* TCP_OOSEQ_MAX_PBUFS && (TCP_OOSEQ_MAX_BYTES < (TCP_WND + 1)) && (PBUF_POOL_BUFSIZE >= (TCP_MSS + PBUF_LINK_ENCAPSULATION_HLEN + PBUF_LINK_HLEN + PBUF_IP_HLEN + PBUF_TRANSPORT_HLEN)) */
   LWIP_UNUSED_ARG(_i);
 }
 END_TEST
@@ -727,21 +834,22 @@ static void test_tcp_recv_ooseq_double_FINs(int delay_packet)
   struct test_tcp_counters counters;
   struct tcp_pcb* pcb;
   struct pbuf *p_normal_fin, *p_data_after_fin, *p, *p_2nd_fin_ooseq;
-  ip_addr_t remote_ip, local_ip;
+  ip_addr_t remote_ip, local_ip, netmask;
   u16_t remote_port = 0x100, local_port = 0x101;
   struct netif netif;
   u32_t exp_rx_calls = 0, exp_rx_bytes = 0, exp_close_calls = 0, exp_oos_pbufs = 0, exp_oos_tcplen = 0;
   int first_dropped = 0xff;
-  int last_dropped = 0;
 
-  for(i = 0; i < sizeof(data_full_wnd); i++) {
+  for(i = 0; i < (int)sizeof(data_full_wnd); i++) {
     data_full_wnd[i] = (char)i;
   }
 
   /* initialize local vars */
   memset(&netif, 0, sizeof(netif));
-  IP4_ADDR(&local_ip, 192, 168, 1, 1);
-  IP4_ADDR(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&local_ip, 192, 168, 1, 1);
+  IP_ADDR4(&remote_ip, 192, 168, 1, 2);
+  IP_ADDR4(&netmask,   255, 255, 255, 0);
+  test_tcp_init_netif(&netif, NULL, &local_ip, &netmask);
   /* initialize counter struct */
   memset(&counters, 0, sizeof(counters));
   counters.expected_data_len = TCP_WND;
@@ -763,7 +871,6 @@ static void test_tcp_recv_ooseq_double_FINs(int delay_packet)
   if(delay_packet & 1) {
     /* drop normal data */
     first_dropped = 1;
-    last_dropped = 1;
   } else {
     /* send normal data */
     test_tcp_input(p, &netif);
@@ -778,7 +885,6 @@ static void test_tcp_recv_ooseq_double_FINs(int delay_packet)
     if(first_dropped > 2) {
       first_dropped = 2;
     }
-    last_dropped = 2;
   } else {
     /* send FIN */
     test_tcp_input(p_normal_fin, &netif);
@@ -799,7 +905,6 @@ static void test_tcp_recv_ooseq_double_FINs(int delay_packet)
     if(first_dropped > 3) {
       first_dropped = 3;
     }
-    last_dropped = 3;
   } else {
     /* send data-after-FIN */
     test_tcp_input(p_data_after_fin, &netif);
@@ -822,7 +927,6 @@ static void test_tcp_recv_ooseq_double_FINs(int delay_packet)
     if(first_dropped > 4) {
       first_dropped = 4;
     }
-    last_dropped = 4;
   } else {
     /* send 2nd-FIN */
     test_tcp_input(p_2nd_fin_ooseq, &netif);
@@ -881,9 +985,9 @@ static void test_tcp_recv_ooseq_double_FINs(int delay_packet)
   EXPECT(pcb->ooseq == NULL);
 
   /* make sure the pcb is freed */
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 1);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 1);
   tcp_abort(pcb);
-  EXPECT(lwip_stats.memp[MEMP_TCP_PCB].used == 0);
+  EXPECT(MEMP_STATS_GET(used, MEMP_TCP_PCB) == 0);
 }
 
 /** create multiple segments and pass them to tcp_input with the first segment missing
@@ -917,28 +1021,29 @@ FIN_TEST(test_tcp_recv_ooseq_double_FIN_15, 15)
 Suite *
 tcp_oos_suite(void)
 {
-  TFun tests[] = {
-    test_tcp_recv_ooseq_FIN_OOSEQ,
-    test_tcp_recv_ooseq_FIN_INSEQ,
-    test_tcp_recv_ooseq_overrun_rxwin,
-    test_tcp_recv_ooseq_max_bytes,
-    test_tcp_recv_ooseq_max_pbufs,
-    test_tcp_recv_ooseq_double_FIN_0,
-    test_tcp_recv_ooseq_double_FIN_1,
-    test_tcp_recv_ooseq_double_FIN_2,
-    test_tcp_recv_ooseq_double_FIN_3,
-    test_tcp_recv_ooseq_double_FIN_4,
-    test_tcp_recv_ooseq_double_FIN_5,
-    test_tcp_recv_ooseq_double_FIN_6,
-    test_tcp_recv_ooseq_double_FIN_7,
-    test_tcp_recv_ooseq_double_FIN_8,
-    test_tcp_recv_ooseq_double_FIN_9,
-    test_tcp_recv_ooseq_double_FIN_10,
-    test_tcp_recv_ooseq_double_FIN_11,
-    test_tcp_recv_ooseq_double_FIN_12,
-    test_tcp_recv_ooseq_double_FIN_13,
-    test_tcp_recv_ooseq_double_FIN_14,
-    test_tcp_recv_ooseq_double_FIN_15
+  testfunc tests[] = {
+    TESTFUNC(test_tcp_recv_ooseq_FIN_OOSEQ),
+    TESTFUNC(test_tcp_recv_ooseq_FIN_INSEQ),
+    TESTFUNC(test_tcp_recv_ooseq_overrun_rxwin),
+    TESTFUNC(test_tcp_recv_ooseq_overrun_rxwin_edge),
+    TESTFUNC(test_tcp_recv_ooseq_max_bytes),
+    TESTFUNC(test_tcp_recv_ooseq_max_pbufs),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_0),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_1),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_2),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_3),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_4),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_5),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_6),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_7),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_8),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_9),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_10),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_11),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_12),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_13),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_14),
+    TESTFUNC(test_tcp_recv_ooseq_double_FIN_15)
   };
-  return create_suite("TCP_OOS", tests, sizeof(tests)/sizeof(TFun), tcp_oos_setup, tcp_oos_teardown);
+  return create_suite("TCP_OOS", tests, sizeof(tests)/sizeof(testfunc), tcp_oos_setup, tcp_oos_teardown);
 }
