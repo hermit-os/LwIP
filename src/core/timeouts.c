@@ -54,6 +54,9 @@
 #include "lwip/autoip.h"
 #include "lwip/igmp.h"
 #include "lwip/dns.h"
+#include "lwip/nd6.h"
+#include "lwip/ip6_frag.h"
+#include "lwip/mld6.h"
 #include "lwip/sys.h"
 #include "lwip/pbuf.h"
 

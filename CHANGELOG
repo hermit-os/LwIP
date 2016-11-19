@@ -808,17 +808,6 @@ HISTORY
   * ip.h: implemented API functions to access so_options of IP pcbs (UDP, TCP, RAW)
     (fixes bug #35061)
 
-  2012-03-25: Simon Goldschmidt (idea by Mason)
-  * posix/*: added posix-compatibility include files posix/netdb.h and posix/sys/socket.h
-    which are a simple wrapper to the correct lwIP include files.
- 
-  2012-01-16: Simon Goldschmidt
-  * opt.h, icmp.c: Added option CHECKSUM_GEN_ICMP
-
-  2011-12-17: Simon Goldschmidt
-  * ip.h: implemented API functions to access so_options of IP pcbs (UDP, TCP, RAW)
-    (fixes bug #35061)
-
   2011-09-27: Simon Goldschmidt
   * opt.h, tcp.c, tcp_in.c: Implemented limiting data on ooseq queue (task #9989)
     (define TCP_OOSEQ_MAX_BYTES / TCP_OOSEQ_MAX_PBUFS in lwipopts.h)
@@ -914,78 +903,6 @@ HISTORY
     (introduced when fixing bug# 33551)
 
   2012-02-16: Simon Goldschmidt (patch by StÃ©phane Lesage)
-  * msg_in.c, msg_out.c: fixed bug #35536 SNMP: error too big response is malformed
-
-  2012-02-15: Simon Goldschmidt
-  * init.c: fixed bug #35537: MEMP_NUM_* sanity checks should be disabled with
-    MEMP_MEM_MALLOC==1
-
-  2012-02-12: Simon Goldschmidt
-  * tcp.h, tcp_in.c, tcp_out.c: partly fixed bug #25882: TCP hangs on
-    MSS > pcb->snd_wnd (by not creating segments bigger than half the window)
-
-  2012-02-11: Simon Goldschmidt
-  * tcp.c: fixed bug #35435: No pcb state check before adding it to time-wait
-    queue while closing
-
-  2012-01-22: Simon Goldschmidt
-  * tcp.c, tcp_in.c: fixed bug #35305: pcb may be freed too early on shutdown(WR)
-
-  2012-01-21: Simon Goldschmidt
-  * tcp.c: fixed bug #34636: FIN_WAIT_2 - Incorrect shutdown of TCP pcb
-
-  2012-01-20: Simon Goldschmidt
-  * dhcp.c: fixed bug #35151: DHCP asserts on incoming option lengths
-
- 2012-01-20: Simon Goldschmidt
-  * pbuf.c: fixed bug #35291: NULL pointer in pbuf_copy
-
-  2012-09-26: Simon Goldschmidt
-  * api_msg.c: fixed bug #37405 'err_tcp()' uses already freed 'netconn' object
-
-  2012-09-26: patch by Henrik Persson
-  * dhcp.c: patch #7843 Fix corner case with dhcp timeouts
-
-  2012-09-26: patch by Henrik Persson
-  * dhcp.c: patch #7840 Segfault in dhcp_parse_reply if no end marker in dhcp packet
-
-  2012-08-22: Simon Goldschmidt
-  * memp.c: fixed bug #37166: memp_sanity check loops itself
-
-  2012-05-08: Simon Goldschmidt
-  * tcp_out.c: fixed bug: #36380 unsent_oversize mismatch in 1.4.1RC1 (this was
-    a debug-check issue only)
-
-  2012-03-27: Simon Goldschmidt
-  * vj.c: fixed bug #35756 header length calculation problem in ppp/vj.c
-
-  2012-03-27: Simon Goldschmidt (patch by Mason)
-  * tcp_out.c: fixed bug #35945: SYN packet should provide the recv MSS not the
-    send MSS
-
-  2012-03-22: Simon Goldschmidt
-  * ip4.c: fixed bug #35927: missing refragmentaion in ip_forward
- 
-  2012-03-20: Simon Goldschmidt (patch by Mason)
-  * netdb.c: fixed bug #35907: lwip_gethostbyname_r returns an invalid h_addr_list
- 
-  2012-03-12: Simon Goldschmidt (patch by Bostjan Meglic)
-  * ppp.c: fixed bug #35809: PPP GetMask(): Compiler warning on big endian,
-    possible bug on little endian system
-
-  2012-02-23: Simon Goldschmidt
-  * etharp.c: fixed bug #35595: Impossible to send broadcast without a gateway
-    (introduced when fixing bug# 33551)
-
-  2012-02-16: Simon Goldschmidt
-  * ppp.c: fixed pbuf leak when PPP session is aborted through pppSigHUP()
-    (bug #35541: PPP Memory Leak)
-
-  2012-02-16: Simon Goldschmidt
-  * etharp.c: fixed bug #35531: Impossible to send multicast without a gateway
-    (introduced when fixing bug# 33551)
-
-  2012-02-16: Simon Goldschmidt (patch by Stéphane Lesage)
   * msg_in.c, msg_out.c: fixed bug #35536 SNMP: error too big response is malformed
 
   2012-02-15: Simon Goldschmidt

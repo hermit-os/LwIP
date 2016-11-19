@@ -307,14 +307,13 @@ igmp_remove_group(struct netif* netif, struct igmp_group *group)
 /**
  * Called from ip_input() if a new IGMP packet is received.
  *
- * @param p received igmp packet, p->payload pointing to the ip header
+ * @param p received igmp packet, p->payload pointing to the igmp header
  * @param inp network interface on which the packet was received
  * @param dest destination ip address of the igmp packet
  */
 void
 igmp_input(struct pbuf *p, struct netif *inp, const ip4_addr_t *dest)
 {
-  struct ip_hdr *    iphdr;
   struct igmp_msg*   igmp;
   struct igmp_group* group;
   struct igmp_group* groupref;

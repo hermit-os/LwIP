@@ -1,9 +1,13 @@
 /**
  * @file
- * This file is a posix wrapper for lwip/errno.h.
+ *
+ * DHCPv6.
  */
 
 /*
+ * Copyright (c) 2010 Inico Technologies Ltd.
+ * All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
  *
@@ -28,6 +32,19 @@
  *
  * This file is part of the lwIP TCP/IP stack.
  *
+ * Author: Ivan Delamer <delamer@inicotech.com>
+ *
+ *
+ * Please coordinate changes and requests with Ivan Delamer
+ * <delamer@inicotech.com>
  */
 
-#include "lwip/errno.h"
+#include "lwip/opt.h"
+
+#if LWIP_IPV6 && LWIP_IPV6_DHCP6 /* don't build if not configured for use in lwipopts.h */
+
+#include "lwip/ip6_addr.h"
+#include "lwip/def.h"
+
+
+#endif /* LWIP_IPV6 && LWIP_IPV6_DHCP6 */

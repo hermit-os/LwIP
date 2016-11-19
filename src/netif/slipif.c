@@ -112,8 +112,8 @@ struct slipif_priv {
  * @param p the pbuf chain packet to send
  * @return always returns ERR_OK since the serial layer does not provide return values
  */
-err_t
-slipif_output(struct netif *netif, struct pbuf *p, ip_addr_t *ipaddr)
+static err_t
+slipif_output(struct netif *netif, struct pbuf *p)
 {
   struct slipif_priv *priv;
   struct pbuf *q;
@@ -123,8 +123,6 @@ slipif_output(struct netif *netif, struct pbuf *p, ip_addr_t *ipaddr)
   LWIP_ASSERT("netif != NULL", (netif != NULL));
   LWIP_ASSERT("netif->state != NULL", (netif->state != NULL));
   LWIP_ASSERT("p != NULL", (p != NULL));
-
-  LWIP_UNUSED_ARG(ipaddr);
 
   LWIP_DEBUGF(SLIP_DEBUG, ("slipif_output(%"U16_F"): sending %"U16_F" bytes\n", (u16_t)netif->num, p->tot_len));
   priv = (struct slipif_priv *)netif->state;

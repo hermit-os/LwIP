@@ -97,7 +97,7 @@ static void tcp_timewait_input(struct tcp_pcb *pcb);
  * the TCP finite state machine. This function is called by the IP layer (in
  * ip_input()).
  *
- * @param p received TCP segment to process (p->payload pointing to the IP header)
+ * @param p received TCP segment to process (p->payload pointing to the TCP header)
  * @param inp network interface on which this segment was received
  */
 void
@@ -119,8 +119,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
   TCP_STATS_INC(tcp.recv);
   MIB2_STATS_INC(mib2.tcpinsegs);
 
-  iphdr = (struct ip_hdr *)p->payload;
-  tcphdr = (struct tcp_hdr *)((u8_t *)p->payload + IPH_HL(iphdr) * 4);
+  tcphdr = (struct tcp_hdr *)p->payload;
 
 #if TCP_INPUT_DEBUG
   tcp_debug_print(tcphdr);
@@ -154,7 +153,7 @@ tcp_input(struct pbuf *p, struct netif *inp)
       goto dropped;
     }
   }
-#endif
+#endif /* CHECKSUM_CHECK_TCP */
 
   /* sanity-check header length */
   hdrlen_bytes = TCPH_HDRLEN(tcphdr) * 4;
@@ -275,18 +274,9 @@ tcp_input(struct pbuf *p, struct netif *inp)
         if (IP_IS_ANY_TYPE_VAL(lpcb->local_ip)) {
           /* found an ANY TYPE (IPv4/IPv6) match */
 #if SO_REUSE
-        if (ip_addr_cmp(&(lpcb->local_ip), &current_iphdr_dest)) {
-          /* found an exact match */
-          break;
-        } else if(ip_addr_isany(&(lpcb->local_ip))) {
-          /* found an ANY-match */
           lpcb_any = lpcb;
           lpcb_prev = prev;
-        }
 #else /* SO_REUSE */
-        if (ip_addr_cmp(&(lpcb->local_ip), &current_iphdr_dest) ||
-            ip_addr_isany(&(lpcb->local_ip))) {
-          /* found a match */
           break;
 #endif /* SO_REUSE */
         } else if (IP_ADDR_PCB_VERSION_MATCH_EXACT(lpcb, ip_current_dest_addr())) {
@@ -303,7 +293,6 @@ tcp_input(struct pbuf *p, struct netif *inp)
  #endif /* SO_REUSE */
           }
         }
-#endif /* SO_REUSE */
       }
       prev = (struct tcp_pcb *)lpcb;
     }
@@ -596,7 +585,6 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
     ip_addr_copy(npcb->local_ip, *ip_current_dest_addr());
     ip_addr_copy(npcb->remote_ip, *ip_current_src_addr());
     npcb->local_port = pcb->local_port;
-    ip_addr_copy(npcb->remote_ip, current_iphdr_src);
     npcb->remote_port = tcphdr->src;
     npcb->state = SYN_RCVD;
     npcb->rcv_nxt = seqno + 1;

@@ -297,7 +297,7 @@ raw_sendto(struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *ipaddr)
 #endif
 
   /* not enough space to add an IP header to first pbuf in given p chain? */
-  if (pbuf_header(p, IP_HLEN)) {
+  if (pbuf_header(p, header_size)) {
     /* allocate header in new pbuf */
     q = pbuf_alloc(PBUF_IP, 0, PBUF_RAM);
     /* new header pbuf could not be allocated? */
@@ -343,7 +343,6 @@ raw_sendto(struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *ipaddr)
       }
       return ERR_VAL;
     }
-    return ERR_VAL;
   }
 #endif /* IP_SOF_BROADCAST */
 
@@ -360,7 +359,7 @@ raw_sendto(struct raw_pcb *pcb, struct pbuf *p, const ip_addr_t *ipaddr)
 #endif /* LWIP_IPV6 */
   } else {
     /* use RAW PCB local IP address as source address */
-    src_ip = &(pcb->local_ip);
+    src_ip = &pcb->local_ip;
   }
 
 #if LWIP_IPV6

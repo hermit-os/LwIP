@@ -256,30 +256,13 @@ lwip_standard_chksum(const void *dataptr, int len)
 }
 #endif
 
-/* inet_chksum_pseudo:
- *
- * Calculates the pseudo Internet checksum used by TCP and UDP for a pbuf chain.
- * IP addresses are expected to be in network byte order.
- *
- * @param p chain of pbufs over that a checksum should be calculated (ip data part)
- * @param src source ip address (used for checksum of pseudo header)
- * @param dst destination ip address (used for checksum of pseudo header)
- * @param proto ip protocol (used for checksum of pseudo header)
- * @param proto_len length of the ip data part (used for checksum of pseudo header)
- * @return checksum (as u16_t) to be saved directly in the protocol header
- */
-u16_t
-inet_chksum_pseudo(struct pbuf *p,
-       ip_addr_t *src, ip_addr_t *dest,
-       u8_t proto, u16_t proto_len)
+/** Parts of the pseudo checksum which are common to IPv4 and IPv6 */
+static u16_t
+inet_cksum_pseudo_base(struct pbuf *p, u8_t proto, u16_t proto_len, u32_t acc)
 {
-  u32_t acc;
-  u32_t addr;
   struct pbuf *q;
-  u8_t swapped;
+  u8_t swapped = 0;
 
-  acc = 0;
-  swapped = 0;
   /* iterate through all pbuf in chain */
   for (q = p; q != NULL; q = q->next) {
     LWIP_DEBUGF(INET_DEBUG, ("inet_chksum_pseudo(): checksumming pbuf %p (has next %p) \n",
@@ -418,11 +401,9 @@ inet_cksum_pseudo_partial_base(struct pbuf *p, u8_t proto, u16_t proto_len,
        u16_t chksum_len, u32_t acc)
 {
   struct pbuf *q;
-  u8_t swapped;
+  u8_t swapped = 0;
   u16_t chklen;
 
-  acc = 0;
-  swapped = 0;
   /* iterate through all pbuf in chain */
   for (q = p; (q != NULL) && (chksum_len > 0); q = q->next) {
     LWIP_DEBUGF(INET_DEBUG, ("inet_chksum_pseudo(): checksumming pbuf %p (has next %p) \n",

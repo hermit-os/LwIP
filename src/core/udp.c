@@ -58,6 +58,7 @@
 #include "lwip/ip6_addr.h"
 #include "lwip/netif.h"
 #include "lwip/icmp.h"
+#include "lwip/icmp6.h"
 #include "lwip/stats.h"
 #include "lwip/snmp.h"
 #include "lwip/dhcp.h"
@@ -201,7 +202,7 @@ udp_input_local_match(struct udp_pcb *pcb, struct netif *inp, u8_t broadcast)
  * recv function. If no pcb is found or the datagram is incorrect, the
  * pbuf is freed.
  *
- * @param p pbuf to be demultiplexed to a UDP PCB.
+ * @param p pbuf to be demultiplexed to a UDP PCB (p->payload pointing to the UDP header)
  * @param inp network interface on which the datagram was received.
  *
  */
@@ -211,7 +212,6 @@ udp_input(struct pbuf *p, struct netif *inp)
   struct udp_hdr *udphdr;
   struct udp_pcb *pcb, *prev;
   struct udp_pcb *uncon_pcb;
-  struct ip_hdr *iphdr;
   u16_t src, dest;
   u8_t broadcast;
   u8_t for_us = 0;
@@ -222,11 +222,8 @@ udp_input(struct pbuf *p, struct netif *inp)
 
   UDP_STATS_INC(udp.recv);
 
-  iphdr = (struct ip_hdr *)p->payload;
-
-  /* Check minimum length (IP header + UDP header)
-   * and move payload pointer to UDP header */
-  if (p->tot_len < (IPH_HL(iphdr) * 4 + UDP_HLEN) || pbuf_header(p, -(s16_t)(IPH_HL(iphdr) * 4))) {
+  /* Check minimum length (UDP header) */
+  if (p->len < UDP_HLEN) {
     /* drop short packets */
     LWIP_DEBUGF(UDP_DEBUG,
                 ("udp_input: short UDP datagram (%"U16_F" bytes) discarded\n", p->tot_len));
@@ -362,6 +359,7 @@ udp_input(struct pbuf *p, struct netif *inp)
           }
         }
       }
+    }
 #endif /* CHECKSUM_CHECK_UDP */
     if (pbuf_header(p, -UDP_HLEN)) {
       /* Can we cope with this failing? Just assert for now */
@@ -381,6 +379,7 @@ udp_input(struct pbuf *p, struct netif *inp)
            if SOF_REUSEADDR is set on the first match */
         struct udp_pcb *mpcb;
         u8_t p_header_changed = 0;
+        s16_t hdrs_len = (s16_t)(ip_current_header_tot_len() + UDP_HLEN);
         for (mpcb = udp_pcbs; mpcb != NULL; mpcb = mpcb->next) {
           if (mpcb != pcb) {
             /* compare PCB local addr+port to UDP destination addr+port */
@@ -409,7 +408,7 @@ udp_input(struct pbuf *p, struct netif *inp)
         }
         if (p_header_changed) {
           /* and move payload to UDP data again */
-          pbuf_header(p, -(s16_t)((IPH_HL(iphdr) * 4) + UDP_HLEN));
+          pbuf_header(p, -hdrs_len);
         }
       }
 #endif /* SO_REUSE && SO_REUSE_RXTOALL */
@@ -425,7 +424,7 @@ udp_input(struct pbuf *p, struct netif *inp)
     } else {
       LWIP_DEBUGF(UDP_DEBUG | LWIP_DBG_TRACE, ("udp_input: not for us.\n"));
 
-#if LWIP_ICMP
+#if LWIP_ICMP || LWIP_ICMP6
       /* No match was found, send ICMP destination port unreachable unless
          destination address was broadcast/multicast. */
       if (!broadcast && !ip_addr_ismulticast(ip_current_dest_addr())) {
@@ -433,7 +432,7 @@ udp_input(struct pbuf *p, struct netif *inp)
         pbuf_header_force(p, ip_current_header_tot_len() + UDP_HLEN);
         icmp_port_unreach(ip_current_is_v6(), p);
       }
-#endif /* LWIP_ICMP */
+#endif /* LWIP_ICMP || LWIP_ICMP6 */
       UDP_STATS_INC(udp.proterr);
       UDP_STATS_INC(udp.drop);
       MIB2_STATS_INC(mib2.udpnoports);
@@ -812,11 +811,8 @@ udp_sendto_if_src_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *d
       }
     }
 #endif /* CHECKSUM_GEN_UDP */
-    /* output to IP */
-    LWIP_DEBUGF(UDP_DEBUG, ("udp_send: ip_output_if (,,,,IP_PROTO_UDPLITE,)\n"));
-    NETIF_SET_HWADDRHINT(netif, &pcb->addr_hint);
-    err = ip_output_if(q, src_ip, dst_ip, pcb->ttl, pcb->tos, IP_PROTO_UDPLITE, netif);
-    NETIF_SET_HWADDRHINT(netif, NULL);
+
+    ip_proto = IP_PROTO_UDPLITE;
   } else
 #endif /* LWIP_UDPLITE */
   {      /* UDP */
@@ -850,12 +846,7 @@ udp_sendto_if_src_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *d
       }
     }
 #endif /* CHECKSUM_GEN_UDP */
-    LWIP_DEBUGF(UDP_DEBUG, ("udp_send: UDP checksum 0x%04"X16_F"\n", udphdr->chksum));
-    LWIP_DEBUGF(UDP_DEBUG, ("udp_send: ip_output_if (,,,,IP_PROTO_UDP,)\n"));
-    /* output to IP */
-    NETIF_SET_HWADDRHINT(netif, &pcb->addr_hint);
-    err = ip_output_if(q, src_ip, dst_ip, pcb->ttl, pcb->tos, IP_PROTO_UDP, netif);
-    NETIF_SET_HWADDRHINT(netif, NULL);
+    ip_proto = IP_PROTO_UDP;
   }
 
   /* Determine TTL to use */
@@ -987,6 +978,7 @@ udp_bind(struct udp_pcb *pcb, const ip_addr_t *ipaddr, u16_t port)
   LWIP_DEBUGF(UDP_DEBUG | LWIP_DBG_TRACE | LWIP_DBG_STATE, (", port %"U16_F")\n", pcb->local_port));
   return ERR_OK;
 }
+
 /**
  * @ingroup udp_raw
  * Connect an UDP PCB.

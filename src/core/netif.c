@@ -54,6 +54,7 @@
 
 #include "lwip/def.h"
 #include "lwip/ip_addr.h"
+#include "lwip/ip6_addr.h"
 #include "lwip/netif.h"
 #include "lwip/priv/tcp_priv.h"
 #include "lwip/udp.h"
@@ -283,6 +284,9 @@ netif_add(struct netif *netif,
 #if LWIP_IGMP
   netif->igmp_mac_filter = NULL;
 #endif /* LWIP_IGMP */
+#if LWIP_IPV6 && LWIP_IPV6_MLD
+  netif->mld_mac_filter = NULL;
+#endif /* LWIP_IPV6 && LWIP_IPV6_MLD */
 #if ENABLE_LOOPBACK
   netif->loop_first = NULL;
   netif->loop_last = NULL;

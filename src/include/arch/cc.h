@@ -38,6 +38,12 @@
 #include <stdint.h>
 #endif
 
+#define LWIP_NO_STDINT_H 1
+#define LWIP_NO_INTTYPES_H 1
+
+int lwip_rand(void);
+#define LWIP_RAND lwip_rand
+
 /* Define platform endianness */
 #ifndef BYTE_ORDER
 #define BYTE_ORDER LITTLE_ENDIAN

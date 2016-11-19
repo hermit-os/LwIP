@@ -1,5 +1,11 @@
+/**
+ * @file
+ *
+ * IPv6 layer.
+ */
+
 /*
- * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
+ * Copyright (c) 2010 Inico Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -26,24 +32,19 @@
  *
  * This file is part of the lwIP TCP/IP stack.
  *
- * Author: Adam Dunkels <adam@sics.se>
+ * Author: Ivan Delamer <delamer@inicotech.com>
  *
- */
-
-
-
-/* ip.c
  *
- * This is the code for the IP layer for IPv6.
- *
+ * Please coordinate changes and requests with Ivan Delamer
+ * <delamer@inicotech.com>
  */
 
 #include "lwip/opt.h"
 
+#if LWIP_IPV6  /* don't build if not configured for use in lwipopts.h */
+
 #include "lwip/def.h"
 #include "lwip/mem.h"
-#include "lwip/ip.h"
-#include "lwip/inet.h"
 #include "lwip/netif.h"
 #include "lwip/ip.h"
 #include "lwip/ip6.h"
@@ -71,7 +72,9 @@
  * 5) tries to match the source address to the netif
  * 6) returns the default netif, if configured
  *
- * Initializes the IP layer.
+ * @param src the source IPv6 address, if known
+ * @param dest the destination IPv6 address for which to find the route
+ * @return the netif on which to send to reach dest
  */
 struct netif *
 ip6_route(const ip6_addr_t *src, const ip6_addr_t *dest)
@@ -195,9 +198,10 @@ ip6_route(const ip6_addr_t *src, const ip6_addr_t *dest)
  * IPv6 address. Loosely follows RFC 3484. "Strong host" behavior
  * is assumed.
  *
- * Finds the appropriate network interface for a given IP address. It searches the
- * list of network interfaces linearly. A match is found if the masked IP address of
- * the network interface equals the masked IP address given to the function.
+ * @param netif the netif on which to send a packet
+ * @param dest the destination we are trying to reach
+ * @return the most suitable source address to use, or NULL if no suitable
+ *         source address is found
  */
 const ip_addr_t *
 ip6_select_source_address(struct netif *netif, const ip6_addr_t *dest)
@@ -268,22 +272,31 @@ ip6_select_source_address(struct netif *netif, const ip6_addr_t *dest)
     }
   }
 
-  return netif_default;
+  return NULL;
 }
 
-/* ip_forward:
+#if LWIP_IPV6_FORWARD
+/**
+ * Forwards an IPv6 packet. It finds an appropriate route for the
+ * packet, decrements the HL value of the packet, and outputs
+ * the packet on the appropriate interface.
  *
- * Forwards an IP packet. It finds an appropriate route for the packet, decrements
- * the TTL value of the packet, adjusts the checksum and outputs the packet on the
- * appropriate interface.
+ * @param p the packet to forward (p->payload points to IP header)
+ * @param iphdr the IPv6 header of the input packet
+ * @param inp the netif on which this packet was received
  */
-
 static void
-ip_forward(struct pbuf *p, struct ip_hdr *iphdr)
+ip6_forward(struct pbuf *p, struct ip6_hdr *iphdr, struct netif *inp)
 {
   struct netif *netif;
 
-  PERF_START;
+  /* do not forward link-local addresses */
+  if (ip6_addr_islinklocal(ip6_current_dest_addr())) {
+    LWIP_DEBUGF(IP6_DEBUG, ("ip6_forward: not forwarding link-local address.\n"));
+    IP6_STATS_INC(ip6.rterr);
+    IP6_STATS_INC(ip6.drop);
+    return;
+  }
 
   /* Find network interface where to forward this IP packet to. */
   netif = ip6_route(IP6_ADDR_ANY6, ip6_current_dest_addr());
@@ -316,32 +329,48 @@ ip_forward(struct pbuf *p, struct ip_hdr *iphdr)
     return;
   }
 
-    LWIP_DEBUGF(IP_DEBUG, ("ip_input: no forwarding route found for "));
-#if IP_DEBUG
-    ip_addr_debug_print(IP_DEBUG, ((struct ip_addr *)&(iphdr->dest)));
-#endif /* IP_DEBUG */
-    LWIP_DEBUGF(IP_DEBUG, ("\n"));
-    pbuf_free(p);
-    return;
-  }
-  /* Decrement TTL and send ICMP if ttl == 0. */
-  if (--iphdr->hoplim == 0) {
-#if LWIP_ICMP
+  /* decrement HL */
+  IP6H_HOPLIM_SET(iphdr, IP6H_HOPLIM(iphdr) - 1);
+  /* send ICMP6 if HL == 0 */
+  if (IP6H_HOPLIM(iphdr) == 0) {
+#if LWIP_ICMP6
     /* Don't send ICMP messages in response to ICMP messages */
-    if (iphdr->nexthdr != IP_PROTO_ICMP) {
-      icmp_time_exceeded(p, ICMP_TE_TTL);
+    if (IP6H_NEXTH(iphdr) != IP6_NEXTH_ICMP6) {
+      icmp6_time_exceeded(p, ICMP6_TE_HL);
     }
-#endif /* LWIP_ICMP */
-    pbuf_free(p);
+#endif /* LWIP_ICMP6 */
+    IP6_STATS_INC(ip6.drop);
     return;
   }
 
-  /* Incremental update of the IP checksum. */
-  /*  if (iphdr->chksum >= htons(0xffff - 0x100)) {
-    iphdr->chksum += htons(0x100) + 1;
-  } else {
-    iphdr->chksum += htons(0x100);
-    }*/
+  if (netif->mtu && (p->tot_len > netif->mtu)) {
+#if LWIP_ICMP6
+    /* Don't send ICMP messages in response to ICMP messages */
+    if (IP6H_NEXTH(iphdr) != IP6_NEXTH_ICMP6) {
+      icmp6_packet_too_big(p, netif->mtu);
+    }
+#endif /* LWIP_ICMP6 */
+    IP6_STATS_INC(ip6.drop);
+    return;
+  }
+
+  LWIP_DEBUGF(IP6_DEBUG, ("ip6_forward: forwarding packet to %"X16_F":%"X16_F":%"X16_F":%"X16_F":%"X16_F":%"X16_F":%"X16_F":%"X16_F"\n",
+      IP6_ADDR_BLOCK1(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK2(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK3(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK4(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK5(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK6(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK7(ip6_current_dest_addr()),
+      IP6_ADDR_BLOCK8(ip6_current_dest_addr())));
+
+  /* transmit pbuf on chosen interface */
+  netif->output_ip6(netif, p, ip6_current_dest_addr());
+  IP6_STATS_INC(ip6.fw);
+  IP6_STATS_INC(ip6.xmit);
+  return;
+}
+#endif /* LWIP_IPV6_FORWARD */
 
 /**
  * This function is called by the network interface device driver when
@@ -350,17 +379,17 @@ ip_forward(struct pbuf *p, struct ip_hdr *iphdr)
  * size etc. If the packet was not destined for us, the packet is
  * forwarded (using ip6_forward).
  *
- * This function is called by the network interface device driver when an IP packet is
- * received. The function does the basic checks of the IP header such as packet size
- * being at least larger than the header size etc. If the packet was not destined for
- * us, the packet is forwarded (using ip_forward). The IP checksum is always checked.
- *
  * Finally, the packet is sent to the upper layer protocol input function.
+ *
+ * @param p the received IPv6 packet (p->payload points to IPv6 header)
+ * @param inp the netif on which this packet was received
+ * @return ERR_OK if the packet was processed (could return ERR_* if it wasn't
+ *         processed, but currently always returns ERR_OK)
  */
-
-void
-ip_input(struct pbuf *p, struct netif *inp) {
-  struct ip_hdr *iphdr;
+err_t
+ip6_input(struct pbuf *p, struct netif *inp)
+{
+  struct ip6_hdr *ip6hdr;
   struct netif *netif;
   u8_t nexth;
   u16_t hlen; /* the current header length */
@@ -370,6 +399,7 @@ ip_input(struct pbuf *p, struct netif *inp) {
   int check_ip_src=1;
 #endif /* IP_ACCEPT_LINK_LAYER_ADDRESSING */
 
+  IP6_STATS_INC(ip6.recv);
 
   /* identify the IP header */
   ip6hdr = (struct ip6_hdr *)p->payload;
@@ -408,6 +438,9 @@ ip_input(struct pbuf *p, struct netif *inp) {
     return ERR_OK;
   }
 
+  /* Trim pbuf. This should have been done at the netif layer,
+   * but we'll do it anyway just to be sure that its done. */
+  pbuf_realloc(p, IP6_HLEN + IP6H_PLEN(ip6hdr));
 
   /* copy IP addresses to aligned ip6_addr_t */
   ip_addr_copy_from_ip6(ip_data.current_iphdr_dest, ip6hdr->dest);
@@ -421,8 +454,8 @@ ip_input(struct pbuf *p, struct netif *inp) {
     return ERR_OK;
   }
 
-  /* identify the IP header */
-  iphdr = p->payload;
+  /* current header pointer. */
+  ip_data.current_ip6_header = ip6hdr;
 
   /* In netif, used in case we need to send ICMPv6 packets back. */
   ip_data.current_netif = inp;
@@ -496,29 +529,30 @@ netif_found:
         netif ? netif->name[0] : 'X', netif? netif->name[1] : 'X'));
   }
 
-  if (iphdr->v != 6) {
-    LWIP_DEBUGF(IP_DEBUG, ("IP packet dropped due to bad version number\n"));
-#if IP_DEBUG
-    ip_debug_print(p);
-#endif /* IP_DEBUG */
+  /* "::" packet source address? (used in duplicate address detection) */
+  if (ip6_addr_isany(ip6_current_src_addr()) &&
+      (!ip6_addr_issolicitednode(ip6_current_dest_addr()))) {
+    /* packet source is not valid */
+    /* free (drop) packet pbufs */
+    LWIP_DEBUGF(IP6_DEBUG, ("ip6_input: packet with src ANY_ADDRESS dropped\n"));
     pbuf_free(p);
-    IP_STATS_INC(ip.err);
-    IP_STATS_INC(ip.drop);
-    return;
+    IP6_STATS_INC(ip6.drop);
+    goto ip6_input_cleanup;
   }
 
-  /* is this packet for us? */
-  for(netif = netif_list; netif != NULL; netif = netif->next) {
-#if IP_DEBUG
-    LWIP_DEBUGF(IP_DEBUG, ("ip_input: iphdr->dest "));
-    ip_addr_debug_print(IP_DEBUG, ((struct ip_addr *)&(iphdr->dest)));
-    LWIP_DEBUGF(IP_DEBUG, ("netif->ip_addr "));
-    ip_addr_debug_print(IP_DEBUG, ((struct ip_addr *)&(iphdr->dest)));
-    LWIP_DEBUGF(IP_DEBUG, ("\n"));
-#endif /* IP_DEBUG */
-    if (ip_addr_cmp(&(iphdr->dest), &(netif->ip_addr))) {
-      break;
+  /* packet not for us? */
+  if (netif == NULL) {
+    /* packet not for us, route or discard */
+    LWIP_DEBUGF(IP6_DEBUG | LWIP_DBG_TRACE, ("ip6_input: packet not for us.\n"));
+#if LWIP_IPV6_FORWARD
+    /* non-multicast packet? */
+    if (!ip6_addr_ismulticast(ip6_current_dest_addr())) {
+      /* try to forward IP packet on (other) interfaces */
+      ip6_forward(p, ip6hdr, inp);
     }
+#endif /* LWIP_IPV6_FORWARD */
+    pbuf_free(p);
+    goto ip6_input_cleanup;
   }
 
   /* current netif pointer. */
@@ -672,6 +706,7 @@ netif_found:
       break;
     }
   }
+options_done:
 
   /* p points to IPv6 header again. */
   pbuf_header_force(p, ip_data.current_ip_header_tot_len);
@@ -738,10 +773,7 @@ ip6_input_cleanup:
   ip6_addr_set_zero(ip6_current_src_addr());
   ip6_addr_set_zero(ip6_current_dest_addr());
 
-    IP_STATS_INC(ip.proterr);
-    IP_STATS_INC(ip.drop);
-  }
-  PERF_STOP("ip_input");
+  return ERR_OK;
 }
 
 
@@ -769,7 +801,6 @@ ip6_input_cleanup:
  *         ERR_BUF if p doesn't have enough space for IPv6/LINK headers
  *         returns errors returned by netif->output
  */
-
 err_t
 ip6_output_if(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
              u8_t hl, u8_t tc,
@@ -799,7 +830,8 @@ ip6_output_if_src(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
              u8_t hl, u8_t tc,
              u8_t nexth, struct netif *netif)
 {
-  struct ip_hdr *iphdr;
+  struct ip6_hdr *ip6hdr;
+  ip6_addr_t dest_addr;
 
   LWIP_IP_CHECK_PBUF_REF_COUNT_FOR_TX(p);
 
@@ -812,24 +844,30 @@ ip6_output_if_src(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
       return ERR_BUF;
     }
 
-  LWIP_DEBUGF(IP_DEBUG, ("len %"U16_F" tot_len %"U16_F"\n", p->len, p->tot_len));
-  if (pbuf_header(p, IP_HLEN)) {
-    LWIP_DEBUGF(IP_DEBUG, ("ip_output: not enough room for IP header in pbuf\n"));
-    IP_STATS_INC(ip.err);
+    ip6hdr = (struct ip6_hdr *)p->payload;
+    LWIP_ASSERT("check that first pbuf can hold struct ip6_hdr",
+               (p->len >= sizeof(struct ip6_hdr)));
 
-    return ERR_BUF;
-  }
-  LWIP_DEBUGF(IP_DEBUG, ("len %"U16_F" tot_len %"U16_F"\n", p->len, p->tot_len));
+    IP6H_HOPLIM_SET(ip6hdr, hl);
+    IP6H_NEXTH_SET(ip6hdr, nexth);
 
-  iphdr = p->payload;
+    /* dest cannot be NULL here */
+    ip6_addr_copy(ip6hdr->dest, *dest);
 
+    IP6H_VTCFL_SET(ip6hdr, 6, tc, 0);
+    IP6H_PLEN_SET(ip6hdr, p->tot_len - IP6_HLEN);
 
     if (src == NULL) {
       src = IP6_ADDR_ANY6;
     }
+    /* src cannot be NULL here */
+    ip6_addr_copy(ip6hdr->src, *src);
 
   } else {
-    dest = &(iphdr->dest);
+    /* IP header already included in p */
+    ip6hdr = (struct ip6_hdr *)p->payload;
+    ip6_addr_copy(dest_addr, ip6hdr->dest);
+    dest = &dest_addr;
   }
 
   IP6_STATS_INC(ip6.xmit);
@@ -881,10 +919,9 @@ ip6_output_if_src(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
  * @param tc the Traffic Class value to be set in the IPv6 header
  * @param nexth the Next Header to be set in the IPv6 header
  *
- * Simple interface to ip_output_if. It finds the outgoing network interface and
- * calls upon ip_output_if to do the actual work.
+ * @return ERR_RTE if no route is found
+ *         see ip_output_if() for more return values
  */
-
 err_t
 ip6_output(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
           u8_t hl, u8_t tc, u8_t nexth)
@@ -919,8 +956,9 @@ ip6_output(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
     return ERR_RTE;
   }
 
-  return ip_output_if (p, src, dest, ttl, proto, netif);
+  return ip6_output_if(p, src, dest, hl, tc, nexth, netif);
 }
+
 
 #if LWIP_NETIF_HWADDRHINT
 /** Like ip6_output, but takes and addr_hint pointer that is passed on to netif->addr_hint
@@ -977,9 +1015,9 @@ ip6_output_hinted(struct pbuf *p, const ip6_addr_t *src, const ip6_addr_t *dest,
     return ERR_RTE;
   }
 
-  LWIP_NETIF_HWADDRHINT(netif, addr_hint);
-  err = ip_output_if(p, src, dest, ttl, tos, proto, netif);
-  LWIP_NETIF_HWADDRHINT(netif, NULL);
+  NETIF_SET_HWADDRHINT(netif, addr_hint);
+  err = ip6_output_if(p, src, dest, hl, tc, nexth, netif);
+  NETIF_SET_HWADDRHINT(netif, NULL);
 
   return err;
 }
@@ -1028,7 +1066,7 @@ ip6_options_add_hbh_ra(struct pbuf *p, u8_t nexth, u8_t value)
  * @param p an IPv6 packet, p->payload pointing to the IPv6 header
  */
 void
-ip_debug_print(struct pbuf *p)
+ip6_debug_print(struct pbuf *p)
 {
   struct ip6_hdr *ip6hdr = (struct ip6_hdr *)p->payload;
 
@@ -1067,4 +1105,6 @@ ip_debug_print(struct pbuf *p)
                     IP6_ADDR_BLOCK8(&(ip6hdr->dest))));
   LWIP_DEBUGF(IP6_DEBUG, ("+-------------------------------+\n"));
 }
-#endif /* IP_DEBUG */
+#endif /* IP6_DEBUG */
+
+#endif /* LWIP_IPV6 */

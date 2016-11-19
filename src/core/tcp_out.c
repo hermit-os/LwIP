@@ -1135,7 +1135,6 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb, struct netif *netif
 {
   err_t err;
   u16_t len;
-  struct netif *netif;
   u32_t *opts;
 
   if (seg->p->ref != 1) {

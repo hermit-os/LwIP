@@ -319,6 +319,9 @@ ethernetif_init(struct netif *netif)
    * from it if you have to do some checks before sending (e.g. if link
    * is available...) */
   netif->output = etharp_output;
+#if LWIP_IPV6
+  netif->output_ip6 = ethip6_output;
+#endif /* LWIP_IPV6 */
   netif->linkoutput = low_level_output;
 
   ethernetif->ethaddr = (struct eth_addr *)&(netif->hwaddr[0]);

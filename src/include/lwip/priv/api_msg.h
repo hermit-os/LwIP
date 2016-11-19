@@ -133,7 +133,7 @@ struct api_msg {
       API_MSG_M_DEF_C(ip_addr_t, netif_addr);
       enum netconn_igmp join_or_leave;
     } jl;
-#endif /* LWIP_IGMP */
+#endif /* LWIP_IGMP || (LWIP_IPV6 && LWIP_IPV6_MLD) */
 #if TCP_LISTEN_BACKLOG
     struct {
       u8_t backlog;

@@ -554,3 +554,52 @@ void freeaddrinfo(struct addrinfo *res)
 #endif /* LWIP_SOCKET */
 
 #endif /* !NO_SYS */
+
+/* Pseudo-random generator based on Minimal Standard by
+   Lewis, Goodman, and Miller in 1969.
+ 
+   I[j+1] = a*I[j] (mod m)
+
+   where a = 16807
+         m = 2147483647
+
+   Using Schrage's algorithm, a*I[j] (mod m) can be rewritten as:
+  
+     a*(I[j] mod q) - r*{I[j]/q}      if >= 0
+     a*(I[j] mod q) - r*{I[j]/q} + m  otherwise
+
+   where: {} denotes integer division 
+          q = {m/a} = 127773 
+          r = m (mod a) = 2836
+
+   note that the seed value of 0 cannot be used in the calculation as
+   it results in 0 itself
+*/
+
+#define RAND_MAX	0x7fffffff
+      
+static unsigned int _seed = 0x4711;
+
+void lwip_srand(unsigned int s)
+{
+	_seed = s;
+}
+
+static int __rand(unsigned int *seed)
+{
+        long k;
+        long s = (long)(*seed);
+        if (s == 0)
+          s = 0x12345987;
+        k = s / 127773;
+        s = 16807 * (s - k * 127773) - 2836 * k;
+        if (s < 0)
+          s += 2147483647;
+        (*seed) = (unsigned int)s;
+        return (int)(s & RAND_MAX);
+}
+
+int lwip_rand(void)
+{
+	return __rand(&_seed);
+}

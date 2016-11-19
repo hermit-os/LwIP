@@ -524,7 +524,7 @@ netconn_recv_data(struct netconn *conn, void **new_buf)
 
 #if LWIP_TCP
 #if (LWIP_UDP || LWIP_RAW)
-  if (conn->type == NETCONN_TCP)
+  if (NETCONNTYPE_GROUP(conn->type) == NETCONN_TCP)
 #endif /* (LWIP_UDP || LWIP_RAW) */
   {
     /* Let the stack know that we have taken the data. */
@@ -593,7 +593,7 @@ err_t
 netconn_recv_tcp_pbuf(struct netconn *conn, struct pbuf **new_buf)
 {
   LWIP_ERROR("netconn_recv: invalid conn", (conn != NULL) &&
-             netconn_type(conn) == NETCONN_TCP, return ERR_ARG;);
+             NETCONNTYPE_GROUP(netconn_type(conn)) == NETCONN_TCP, return ERR_ARG;);
 
   return netconn_recv_data(conn, (void **)new_buf);
 }
@@ -621,7 +621,7 @@ netconn_recv(struct netconn *conn, struct netbuf **new_buf)
 
 #if LWIP_TCP
 #if (LWIP_UDP || LWIP_RAW)
-  if (conn->type == NETCONN_TCP)
+  if (NETCONNTYPE_GROUP(conn->type) == NETCONN_TCP)
 #endif /* (LWIP_UDP || LWIP_RAW) */
   {
     struct pbuf *p = NULL;
@@ -729,7 +729,7 @@ netconn_write_partly(struct netconn *conn, const void *dataptr, size_t size,
   u8_t dontblock;
 
   LWIP_ERROR("netconn_write: invalid conn",  (conn != NULL), return ERR_ARG;);
-  LWIP_ERROR("netconn_write: invalid conn->type",  (conn->type == NETCONN_TCP), return ERR_VAL;);
+  LWIP_ERROR("netconn_write: invalid conn->type",  (NETCONNTYPE_GROUP(conn->type)== NETCONN_TCP), return ERR_VAL;);
   if (size == 0) {
     return ERR_OK;
   }
@@ -844,7 +844,7 @@ netconn_shutdown(struct netconn *conn, u8_t shut_rx, u8_t shut_tx)
   return netconn_close_shutdown(conn, (shut_rx ? NETCONN_SHUT_RD : 0) | (shut_tx ? NETCONN_SHUT_WR : 0));
 }
 
-#if LWIP_IGMP
+#if LWIP_IGMP || (LWIP_IPV6 && LWIP_IPV6_MLD)
 /**
  * @ingroup netconn_udp
  * Join multicast groups for UDP netconns.
@@ -886,7 +886,7 @@ netconn_join_leave_group(struct netconn *conn,
 
   return err;
 }
-#endif /* LWIP_IGMP */
+#endif /* LWIP_IGMP || (LWIP_IPV6 && LWIP_IPV6_MLD) */
 
 #if LWIP_DNS
 /**

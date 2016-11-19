@@ -179,10 +179,21 @@ extern int errno;
 
 #else /* LWIP_PROVIDE_ERRNO */
 
+#ifdef __hermit__
+
+#ifdef __KERNEL__
+#include <hermit/errno.h>
+#else
+#include <errno.h>
+#endif
+
+#else
 /* Define LWIP_ERRNO_INCLUDE to <errno.h> to include the error defines here */
 #ifdef LWIP_ERRNO_INCLUDE
 #include LWIP_ERRNO_INCLUDE
 #endif /* LWIP_ERRNO_INCLUDE */
+
+#endif /*__hermit__ */
 
 #endif /* LWIP_PROVIDE_ERRNO */
 

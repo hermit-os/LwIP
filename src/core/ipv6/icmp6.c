@@ -1,5 +1,11 @@
+/**
+ * @file
+ *
+ * IPv6 version of ICMP, as per RFC 4443.
+ */
+
 /*
- * Copyright (c) 2001-2004 Swedish Institute of Computer Science.
+ * Copyright (c) 2010 Inico Technologies Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -26,16 +32,16 @@
  *
  * This file is part of the lwIP TCP/IP stack.
  *
- * Author: Adam Dunkels <adam@sics.se>
+ * Author: Ivan Delamer <delamer@inicotech.com>
  *
+ *
+ * Please coordinate changes and requests with Ivan Delamer
+ * <delamer@inicotech.com>
  */
-
-/* Some ICMP messages should be passed to the transport protocols. This
-   is not implemented. */
 
 #include "lwip/opt.h"
 
-#if LWIP_ICMP /* don't build if not configured for use in lwipopts.h */
+#if LWIP_ICMP6 && LWIP_IPV6 /* don't build if not configured for use in lwipopts.h */
 
 #include "lwip/icmp6.h"
 #include "lwip/prot/icmp6.h"
@@ -49,18 +55,47 @@
 #include "lwip/ip.h"
 #include "lwip/stats.h"
 
+#include <string.h>
+
+#ifndef LWIP_ICMP6_DATASIZE
+#define LWIP_ICMP6_DATASIZE   8
+#endif
+#if LWIP_ICMP6_DATASIZE == 0
+#define LWIP_ICMP6_DATASIZE   8
+#endif
+
+/* Forward declarations */
+static void icmp6_send_response(struct pbuf *p, u8_t code, u32_t data, u8_t type);
+
+
+/**
+ * Process an input ICMPv6 message. Called by ip6_input.
+ *
+ * Will generate a reply for echo requests. Other messages are forwarded
+ * to nd6_input, or mld6_input.
+ *
+ * @param p the mld packet, p->payload pointing to the icmpv6 header
+ * @param inp the netif on which this packet was received
+ */
 void
-icmp_input(struct pbuf *p, struct netif *inp)
+icmp6_input(struct pbuf *p, struct netif *inp)
 {
   struct icmp6_hdr *icmp6hdr;
   struct pbuf *r;
   const ip6_addr_t *reply_src;
 
-  ICMP_STATS_INC(icmp.recv);
+  ICMP6_STATS_INC(icmp6.recv);
 
-  /* TODO: check length before accessing payload! */
+  /* Check that ICMPv6 header fits in payload */
+  if (p->len < sizeof(struct icmp6_hdr)) {
+    /* drop short packets */
+    pbuf_free(p);
+    ICMP6_STATS_INC(icmp6.lenerr);
+    ICMP6_STATS_INC(icmp6.drop);
+    return;
+  }
 
-  type = ((u8_t *)p->payload)[0];
+  icmp6hdr = (struct icmp6_hdr *)p->payload;
 
 #if CHECKSUM_CHECK_ICMP6
   IF__NETIF_CHECKSUM_ENABLED(inp, NETIF_CHECKSUM_CHECK_ICMP6) {
@@ -108,16 +143,22 @@ icmp_input(struct pbuf *p, struct netif *inp)
     }
 #endif /* LWIP_MULTICAST_PING */
 
+    /* Allocate reply. */
+    r = pbuf_alloc(PBUF_IP, p->tot_len, PBUF_RAM);
+    if (r == NULL) {
+      /* drop */
       pbuf_free(p);
-      ICMP_STATS_INC(icmp.lenerr);
+      ICMP6_STATS_INC(icmp6.memerr);
       return;
     }
-    iecho = p->payload;
-    iphdr = (struct ip_hdr *)((u8_t *)p->payload - IP_HLEN);
-    if (inet_chksum_pbuf(p) != 0) {
-      LWIP_DEBUGF(ICMP_DEBUG, ("icmp_input: checksum failed for received ICMP echo (%"X16_F")\n", inet_chksum_pseudo(p, &(iphdr->src), &(iphdr->dest), IP_PROTO_ICMP, p->tot_len)));
-      ICMP_STATS_INC(icmp.chkerr);
-    /*      return;*/
+
+    /* Copy echo request. */
+    if (pbuf_copy(r, p) != ERR_OK) {
+      /* drop */
+      pbuf_free(p);
+      pbuf_free(r);
+      ICMP6_STATS_INC(icmp6.err);
+      return;
     }
 
     /* Determine reply source IPv6 address. */
@@ -137,8 +178,6 @@ icmp_input(struct pbuf *p, struct netif *inp)
     {
       reply_src = ip6_current_dest_addr();
     }
-    LWIP_DEBUGF(ICMP_DEBUG, ("icmp_input: checksum failed for received ICMP echo (%"X16_F")\n", inet_chksum_pseudo(p, &(iphdr->src), &(iphdr->dest), IP_PROTO_ICMP, p->tot_len)));
-    ICMP_STATS_INC(icmp.xmit);
 
     /* Set fields in reply. */
     ((struct icmp6_echo_hdr *)(r->payload))->type = ICMP6_TYPE_EREP;
@@ -158,52 +197,79 @@ icmp_input(struct pbuf *p, struct netif *inp)
 
     break;
   default:
-    LWIP_DEBUGF(ICMP_DEBUG, ("icmp_input: ICMP type %"S16_F" not supported.\n", (s16_t)type));
-    ICMP_STATS_INC(icmp.proterr);
-    ICMP_STATS_INC(icmp.drop);
+    ICMP6_STATS_INC(icmp6.proterr);
+    ICMP6_STATS_INC(icmp6.drop);
+    break;
   }
 
   pbuf_free(p);
 }
 
+
+/**
+ * Send an icmpv6 'destination unreachable' packet.
+ *
+ * @param p the input packet for which the 'unreachable' should be sent,
+ *          p->payload pointing to the IPv6 header
+ * @param c ICMPv6 code for the unreachable type
+ */
 void
-icmp_dest_unreach(struct pbuf *p, enum icmp_dur_type t)
+icmp6_dest_unreach(struct pbuf *p, enum icmp6_dur_code c)
 {
-  struct pbuf *q;
-  struct ip_hdr *iphdr;
-  struct icmp_dur_hdr *idur;
-
-  /* @todo: can this be PBUF_LINK instead of PBUF_IP? */
-  q = pbuf_alloc(PBUF_IP, 8 + IP_HLEN + 8, PBUF_RAM);
-  /* ICMP header + IP header + 8 bytes of data */
-  if (q == NULL) {
-    LWIP_DEBUGF(ICMP_DEBUG, ("icmp_dest_unreach: failed to allocate pbuf for ICMP packet.\n"));
-    pbuf_free(p);
-    return;
-  }
-  LWIP_ASSERT("check that first pbuf can hold icmp message",
-             (q->len >= (8 + IP_HLEN + 8)));
-
-  iphdr = p->payload;
-
-  idur = q->payload;
-  idur->type = (u8_t)ICMP6_DUR;
-  idur->icode = (u8_t)t;
-
-  SMEMCPY((u8_t *)q->payload + 8, p->payload, IP_HLEN + 8);
-
-  /* calculate checksum */
-  idur->chksum = 0;
-  idur->chksum = inet_chksum(idur, q->len);
-  ICMP_STATS_INC(icmp.xmit);
-
-  ip_output(q, NULL,
-      (struct ip_addr *)&(iphdr->src), ICMP_TTL, IP_PROTO_ICMP);
-  pbuf_free(q);
+  icmp6_send_response(p, c, 0, ICMP6_TYPE_DUR);
 }
 
+/**
+ * Send an icmpv6 'packet too big' packet.
+ *
+ * @param p the input packet for which the 'packet too big' should be sent,
+ *          p->payload pointing to the IPv6 header
+ * @param mtu the maximum mtu that we can accept
+ */
 void
-icmp_time_exceeded(struct pbuf *p, enum icmp_te_type t)
+icmp6_packet_too_big(struct pbuf *p, u32_t mtu)
+{
+  icmp6_send_response(p, 0, mtu, ICMP6_TYPE_PTB);
+}
+
+/**
+ * Send an icmpv6 'time exceeded' packet.
+ *
+ * @param p the input packet for which the 'unreachable' should be sent,
+ *          p->payload pointing to the IPv6 header
+ * @param c ICMPv6 code for the time exceeded type
+ */
+void
+icmp6_time_exceeded(struct pbuf *p, enum icmp6_te_code c)
+{
+  icmp6_send_response(p, c, 0, ICMP6_TYPE_TE);
+}
+
+/**
+ * Send an icmpv6 'parameter problem' packet.
+ *
+ * @param p the input packet for which the 'param problem' should be sent,
+ *          p->payload pointing to the IP header
+ * @param c ICMPv6 code for the param problem type
+ * @param pointer the pointer to the byte where the parameter is found
+ */
+void
+icmp6_param_problem(struct pbuf *p, enum icmp6_pp_code c, u32_t pointer)
+{
+  icmp6_send_response(p, c, pointer, ICMP6_TYPE_PP);
+}
+
+/**
+ * Send an ICMPv6 packet in response to an incoming packet.
+ *
+ * @param p the input packet for which the response should be sent,
+ *          p->payload pointing to the IPv6 header
+ * @param code Code of the ICMPv6 header
+ * @param data Additional 32-bit parameter in the ICMPv6 header
+ * @param type Type of the ICMPv6 header
+ */
+static void
+icmp6_send_response(struct pbuf *p, u8_t code, u32_t data, u8_t type)
 {
   struct pbuf *q;
   struct icmp6_hdr *icmp6hdr;
@@ -213,22 +279,25 @@ icmp_time_exceeded(struct pbuf *p, enum icmp_te_type t)
   struct ip6_hdr *ip6hdr;
   struct netif *netif;
 
-  /* @todo: can this be PBUF_LINK instead of PBUF_IP? */
-  q = pbuf_alloc(PBUF_IP, 8 + IP_HLEN + 8, PBUF_RAM);
-  /* ICMP header + IP header + 8 bytes of data */
+  /* ICMPv6 header + IPv6 header + data */
+  q = pbuf_alloc(PBUF_IP, sizeof(struct icmp6_hdr) + IP6_HLEN + LWIP_ICMP6_DATASIZE,
+                 PBUF_RAM);
   if (q == NULL) {
-    LWIP_DEBUGF(ICMP_DEBUG, ("icmp_dest_unreach: failed to allocate pbuf for ICMP packet.\n"));
-    pbuf_free(p);
+    LWIP_DEBUGF(ICMP_DEBUG, ("icmp_time_exceeded: failed to allocate pbuf for ICMPv6 packet.\n"));
+    ICMP6_STATS_INC(icmp6.memerr);
     return;
   }
-  LWIP_ASSERT("check that first pbuf can hold icmp message",
-             (q->len >= (8 + IP_HLEN + 8)));
+  LWIP_ASSERT("check that first pbuf can hold icmp 6message",
+             (q->len >= (sizeof(struct icmp6_hdr) + IP6_HLEN + LWIP_ICMP6_DATASIZE)));
 
-  iphdr = p->payload;
+  icmp6hdr = (struct icmp6_hdr *)q->payload;
+  icmp6hdr->type = type;
+  icmp6hdr->code = code;
+  icmp6hdr->data = data;
 
-  tehdr = q->payload;
-  tehdr->type = (u8_t)ICMP6_TE;
-  tehdr->icode = (u8_t)t;
+  /* copy fields from original packet */
+  SMEMCPY((u8_t *)q->payload + sizeof(struct icmp6_hdr), (u8_t *)p->payload,
+          IP6_HLEN + LWIP_ICMP6_DATASIZE);
 
   /* Get the destination address and netif for this ICMP message. */
   if ((ip_current_netif() == NULL) ||
@@ -278,4 +347,4 @@ icmp_time_exceeded(struct pbuf *p, enum icmp_te_type t)
   pbuf_free(q);
 }
 
-#endif /* LWIP_ICMP */
+#endif /* LWIP_ICMP6 && LWIP_IPV6 */

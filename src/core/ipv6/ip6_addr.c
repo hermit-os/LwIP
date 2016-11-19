@@ -1,3 +1,9 @@
+/**
+ * @file
+ *
+ * IPv6 addresses.
+ */
+
 /*
  * Copyright (c) 2010 Inico Technologies Ltd.
  * All rights reserved.
@@ -30,11 +36,11 @@
  *
  * Functions for handling IPv6 addresses.
  *
+ * Please coordinate changes and requests with Ivan Delamer
+ * <delamer@inicotech.com>
  */
 
 #include "lwip/opt.h"
-#include "lwip/ip_addr.h"
-#include "lwip/inet.h"
 
 #if LWIP_IPV6  /* don't build if not configured for use in lwipopts.h */
 
@@ -168,14 +174,21 @@ ip6addr_aton(const char *cp, ip6_addr_t *addr)
 char *
 ip6addr_ntoa(const ip6_addr_t *addr)
 {
-  return(addr1->addr[0] == addr2->addr[0] &&
-         addr1->addr[1] == addr2->addr[1] &&
-         addr1->addr[2] == addr2->addr[2] &&
-         addr1->addr[3] == addr2->addr[3]);
+  static char str[40];
+  return ip6addr_ntoa_r(addr, str, 40);
 }
 
-void
-ip_addr_set(struct ip_addr *dest, struct ip_addr *src)
+/**
+ * Same as ipaddr_ntoa, but reentrant since a user-supplied buffer is used.
+ *
+ * @param addr ip6 address in network order to convert
+ * @param buf target buffer where the string is stored
+ * @param buflen length of buf
+ * @return either pointer to buf which now holds the ASCII
+ *         representation of addr or NULL if buf was too small
+ */
+char *
+ip6addr_ntoa_r(const ip6_addr_t *addr, char *buf, int buflen)
 {
   u32_t current_block_index, current_block_value, next_block_value;
   s32_t i;
@@ -273,11 +286,7 @@ ip_addr_set(struct ip_addr *dest, struct ip_addr *src)
 
   buf[i] = 0;
 
-u8_t
-ip_addr_isany(struct ip_addr *addr)
-{
-  if (addr == NULL) return 1;
-  return((addr->addr[0] | addr->addr[1] | addr->addr[2] | addr->addr[3]) == 0);
+  return buf;
 }
 
 #endif /* LWIP_IPV6 */

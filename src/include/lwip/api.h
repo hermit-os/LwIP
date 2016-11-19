@@ -173,13 +173,13 @@ enum netconn_evt {
   NETCONN_EVT_ERROR
 };
 
-#if LWIP_IGMP
+#if LWIP_IGMP || (LWIP_IPV6 && LWIP_IPV6_MLD)
 /** Used for netconn_join_leave_group() */
 enum netconn_igmp {
   NETCONN_JOIN,
   NETCONN_LEAVE
 };
-#endif /* LWIP_IGMP */
+#endif /* LWIP_IGMP || (LWIP_IPV6 && LWIP_IPV6_MLD) */
 
 #if LWIP_DNS
 /* Used for netconn_gethostbyname_addrtype(), these should match the DNS_ADDRTYPE defines in dns.h */

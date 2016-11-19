@@ -58,7 +58,11 @@ extern "C" {
  * be enabled (to not overwrite part of the data). When enabled, the IPv6 header
  * is copied instead of referencing it, which gives more room for struct ip6_reass_helper */
 #ifndef IPV6_FRAG_COPYHEADER
+#ifdef __hermit__
+#define IPV6_FRAG_COPYHEADER   1
+#else
 #define IPV6_FRAG_COPYHEADER   0
+#endif
 #endif
 
 /** The IPv6 reassembly timer interval in milliseconds. */

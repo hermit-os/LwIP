@@ -5,6 +5,10 @@
 
 #include <stddef.h>
 
+/* enable dual-stack */
+#define LWIP_IPV4		1
+#define LWIP_IPV6		1
+
 /**
  * SYS_LIGHTWEIGHT_PROT==1: if you want inter-task protection for certain
  * critical regions during buffer allocation, deallocation and memory
@@ -43,6 +47,11 @@
  * LWIP_DHCP==1: Enable DHCP module.
  */
 #define LWIP_DHCP 		1
+
+/**
+ * LWIP_IPV6_DHCP6==1: enable DHCPv6 stateful address autoconfiguration.
+ */
+#define LWIP_IPV6_DHCP6		1
 
 /**
  * DHCP_DOES_ARP_CHECK==1: Do an ARP check on the offered address.
@@ -119,12 +128,6 @@
  * LWIP_MULTICAST_PING==1: respond to multicast pings (default is unicast only)
  */
 #define LWIP_MULTICAST_PING	1
-
-/**
- * MEMP_NUM_SYS_TIMEOUT: the number of simulateously active timeouts.
- * (requires NO_SYS==0)
- */
-#define MEMP_NUM_SYS_TIMEOUT	7
 
 /**
  * LWIP_HAVE_LOOPIF==1: Support loop interface (127.0.0.1) and loopif.c
@@ -277,6 +280,7 @@
 #define RAW_DEBUG		LWIP_DBG_OFF
 #define MEM_DEBUG		LWIP_DBG_OFF
 #define IP_DEBUG		LWIP_DBG_OFF
+#define IP6_DEBUG		LWIP_DBG_OFF
 #define INET_DEBUG		LWIP_DBG_OFF
 #define NETIF_DEBUG		LWIP_DBG_ON
 #define TIMERS_DEBUG		LWIP_DBG_OFF

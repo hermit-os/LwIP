@@ -1,8 +1,7 @@
 /**
  * @file
- * Functions common to all TCP/IPv6 modules, such as the Internet checksum and the
- * byte order functions.
  *
+ * INET v6 addresses.
  */
 
 /*
@@ -35,9 +34,14 @@
  *
  * Author: Ivan Delamer <delamer@inicotech.com>
  *
+ *
+ * Please coordinate changes and requests with Ivan Delamer
+ * <delamer@inicotech.com>
  */
 
 #include "lwip/opt.h"
+
+#if LWIP_IPV6 && LWIP_SOCKET /* don't build if not configured for use in lwipopts.h */
 
 #include "lwip/def.h"
 #include "lwip/inet.h"
@@ -46,28 +50,4 @@
  */
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 
-u16_t
-inet_chksum_pbuf(struct pbuf *p)
-{
-  u32_t acc;
-  struct pbuf *q;
-  u8_t swapped;
-  
-  acc = 0;
-  swapped = 0;
-  for(q = p; q != NULL; q = q->next) {
-    acc += chksum(q->payload, q->len);
-    while (acc >> 16) {
-      acc = (acc & 0xffff) + (acc >> 16);
-    }    
-    if (q->len % 2 != 0) {
-      swapped = 1 - swapped;
-      acc = (acc & 0xff << 8) | (acc & 0xff00 >> 8);
-    }
-  }
- 
-  if (swapped) {
-    acc = ((acc & 0xff) << 8) | ((acc & 0xff00) >> 8);
-  }
-  return ~(acc & 0xffff);
-}
+#endif /* LWIP_IPV6 */
