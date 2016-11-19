@@ -577,13 +577,10 @@ void freeaddrinfo(struct addrinfo *res)
 */
 
 #define RAND_MAX	0x7fffffff
-      
-static unsigned int _seed = 0x4711;
 
-void lwip_srand(unsigned int s)
-{
-	_seed = s;
-}
+static int rand_init = 0;
+static unsigned int rand_seed = 0;
+static spinlock_t rand_lock = SPINLOCK_INIT;
 
 static int __rand(unsigned int *seed)
 {
@@ -601,5 +598,15 @@ static int __rand(unsigned int *seed)
 
 int lwip_rand(void)
 {
-	return __rand(&_seed);
+	int r;
+
+	spinlock_lock(&rand_lock);
+	if (!rand_init) {
+		rand_init = 1;
+		rand_seed = rdtsc() % 127;
+	}
+	r = __rand(&rand_seed);
+	spinlock_unlock(&rand_lock);
+
+	return r;
 }
