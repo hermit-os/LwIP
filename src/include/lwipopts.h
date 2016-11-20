@@ -38,6 +38,18 @@
  */
 #define LWIP_NETCONN		!(NO_SYS == 1)
 
+/** LWIP_NETCONN_SEM_PER_THREAD==1: Use one (thread-local) semaphore per
+ * thread calling socket/netconn functions instead of allocating one
+ * semaphore per netconn (and per select etc.)
+ * ATTENTION: a thread-local semaphore for API calls is needed:
+ * - LWIP_NETCONN_THREAD_SEM_GET() returning a sys_sem_t*
+ * - LWIP_NETCONN_THREAD_SEM_ALLOC() creating the semaphore
+ * - LWIP_NETCONN_THREAD_SEM_FREE() freeing the semaphore
+ * The latter 2 can be invoked up by calling netconn_thread_init()/netconn_thread_cleanup().
+ * Ports may call these for threads created with sys_thread_new().
+ */
+#define LWIP_NETCONN_SEM_PER_THREAD	1
+
 /**
  * LWIP_NETIF_API==1: Support netif api (in netifapi.c)
  */

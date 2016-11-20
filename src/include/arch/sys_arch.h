@@ -43,4 +43,11 @@ static inline void sys_arch_unprotect(sys_prot_t pval)
 #endif
 #endif
 
+sys_sem_t* sys_arch_netconn_sem_get(void);
+void sys_arch_netconn_sem_alloc(void);
+void sys_arch_netconn_sem_free(void);
+#define LWIP_NETCONN_THREAD_SEM_GET()   sys_arch_netconn_sem_get()
+#define LWIP_NETCONN_THREAD_SEM_ALLOC() sys_arch_netconn_sem_alloc()
+#define LWIP_NETCONN_THREAD_SEM_FREE()  sys_arch_netconn_sem_free()
+
 #endif /* __ARCH_SYS_ARCH_H__ */

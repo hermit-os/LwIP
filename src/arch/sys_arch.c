@@ -615,3 +615,30 @@ int lwip_rand(void)
 
 	return r;
 }
+
+#if LWIP_NETCONN_SEM_PER_THREAD
+static __thread sys_sem_t* netconn_sem = NULL;
+
+sys_sem_t* sys_arch_netconn_sem_get(void)
+{
+	return netconn_sem;
+}
+
+void sys_arch_netconn_sem_alloc(void)
+{
+	sys_sem_t *sem;
+	err_t err;
+
+	sem = netconn_sem = (sys_sem_t*)kmalloc(sizeof(sys_sem_t));
+	LWIP_ASSERT("failed to allocate memory for TLS semaphore", sem != NULL);
+	err = sys_sem_new(sem, 0);
+	LWIP_ASSERT("failed to initialise TLS semaphore", err == ERR_OK);
+}
+
+void sys_arch_netconn_sem_free(void)
+{
+	if (netconn_sem != NULL)
+		kfree(netconn_sem);
+}
+#endif /* LWIP_NETCONN_SEM_PER_THREAD */
+
