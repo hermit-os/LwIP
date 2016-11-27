@@ -48,7 +48,7 @@
  * The latter 2 can be invoked up by calling netconn_thread_init()/netconn_thread_cleanup().
  * Ports may call these for threads created with sys_thread_new().
  */
-#define LWIP_NETCONN_SEM_PER_THREAD	1
+#define LWIP_NETCONN_SEM_PER_THREAD	0
 
 /**
  * LWIP_NETIF_API==1: Support netif api (in netifapi.c)
