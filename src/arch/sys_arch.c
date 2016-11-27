@@ -26,6 +26,7 @@
  */
 #include <hermit/stddef.h>
 #include <hermit/time.h>
+#include <hermit/logging.h>
 
 #include "lwip/opt.h"
 #include "lwip/debug.h"
@@ -90,7 +91,7 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
 	LWIP_UNUSED_ARG(stacksize);
 
 	err = create_kernel_task_on_core(&id, (entry_point_t)thread, arg, prio, boot_processor);
-	LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: create_kernel_task %d, id = %u, prio = %d\n", err, id, prio));
+	LOG_INFO("sys_thread_new: create_kernel_task err %d, id = %u, prio = %d\n", err, id, prio);
 
 	return id;
 }
@@ -629,10 +630,14 @@ void sys_arch_netconn_sem_alloc(void)
 	sys_sem_t *sem;
 	err_t err;
 
+	if (netconn_sem != NULL)
+		return;
+
 	sem = netconn_sem = (sys_sem_t*)kmalloc(sizeof(sys_sem_t));
 	LWIP_ASSERT("failed to allocate memory for TLS semaphore", sem != NULL);
 	err = sys_sem_new(sem, 0);
 	LWIP_ASSERT("failed to initialise TLS semaphore", err == ERR_OK);
+	LOG_INFO("Task %d creates a netconn semaphore at %p\n", per_core(current_task)->id, netconn_sem);
 }
 
 void sys_arch_netconn_sem_free(void)
