@@ -77,6 +77,31 @@
 #define LWIP_DNS		1
 
 /**
+ * LWIP_MDNS_RESPONDER==1: Turn on multicast DNS module. UDP must be available for MDNS
+ * transport. IGMP is needed for IPv4 multicast.
+ */
+#define LWIP_MDNS_RESPONDER	1
+
+#define LWIP_NUM_NETIF_CLIENT_DATA	(LWIP_MDNS_RESPONDER)
+
+/**
+ * LWIP_UDP==1: Turn on UDP.
+ */
+#define LWIP_UDP		1
+
+/**
+ * LWIP_UDPLITE==1: Turn on UDP-Lite. (Requires LWIP_UDP)
+ */
+#define LWIP_UDPLITE		1
+
+#define LWIP_NETBUF_RECVINFO	1
+
+/**
+ * LWIP_IGMP==1: Turn on IGMP module.
+ */
+#define LWIP_IGMP		1
+
+/**
  * ETHARP_TRUST_IP_MAC==1: Incoming IP packets cause the ARP table to be
  * updated with the source MAC and IP addresses supplied in the packet.
  * You may want to disable this if you do not trust LAN peers to have the
