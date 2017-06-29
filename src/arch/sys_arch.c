@@ -601,10 +601,12 @@ int lwip_rand(void)
 {
 	int r;
 
+#ifdef __x86_64__
 	if (has_rdrand()) {
 		r = rdrand() % RAND_MAX;
 		return r;
 	}
+#endif
 
 	spinlock_lock(&rand_lock);
 	if (!rand_init) {
