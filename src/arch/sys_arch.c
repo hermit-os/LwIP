@@ -507,6 +507,9 @@ int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, st
 		return -1;
 	}
 
+	// check if another task is already ready
+	sys_yield();
+
 	return ret;
 }
 
