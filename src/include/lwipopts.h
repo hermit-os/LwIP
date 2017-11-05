@@ -199,19 +199,41 @@
  * per active UDP "connection".
  * (requires the LWIP_UDP option)
  */
-#define MEMP_NUM_UDP_PCB       0x30
+#define MEMP_NUM_UDP_PCB	0x30
 
 /**
  * MEMP_NUM_TCP_PCB: the number of simulatenously active TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB       0x30
+#define MEMP_NUM_TCP_PCB	0x30
 
 /**
  * MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB_LISTEN        0x30
+#define MEMP_NUM_TCP_PCB_LISTEN	0x30
+
+/**
+ * MEMP_NUM_NETCONN: the number of struct netconns.
+ * (only needed if you use the sequential API, like api_lib.c)
+ * MEM_SIZE: the size of the heap memory. If the application will send
+ * a lot of data that needs to be copied, this should be set high.
+ */
+#define MEMP_NUM_NETCONN	16
+
+/**
+ * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used
+ * for callback/timeout API communication.
+ * (only needed if you use tcpip.c)
+ */
+#define MEMP_NUM_TCPIP_MSG_API	16
+
+/**
+ * MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used
+ * for incoming packets.
+ * (only needed if you use tcpip.c)
+ */
+#define MEMP_NUM_TCPIP_MSG_INPKT	16
 
 /**
  * DEFAULT_THREAD_PRIO: The priority assigned to any other lwIP thread.
