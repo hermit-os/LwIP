@@ -34,6 +34,11 @@
 #define LWIP_SOCKET		!(NO_SYS == 1)
 
 /**
+ * SO_REUSE==1: Enable SO_REUSEADDR option.
+ */
+#define SO_REUSE		1
+
+/**
  * LWIP_NETCONN==1: Enable Netconn API (require to use api_lib.c)
  */
 #define LWIP_NETCONN		!(NO_SYS == 1)
