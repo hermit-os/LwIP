@@ -91,7 +91,9 @@ typedef size_t mem_ptr_t;
 /* define errno to determine error code */
 #define ERRNO
 #ifdef __KERNEL__
-#define errno per_core(current_task)->lwip_err
+DECLARE_PER_CORE(int, current_task_lwip_errno);
+#define errno (per_core(current_task_lwip_errno))
+#define set_errno(err) do { if (err) { set_per_core(current_task_lwip_errno, err); } } while(0)
 #endif
 
 /* prototypes for printf() and do_abort() */
