@@ -25,8 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <hermit/stddef.h>
-#include <hermit/time.h>
-#include <hermit/logging.h>
+#include <hermit/syscall.h>
 
 #include "lwip/opt.h"
 #include "lwip/debug.h"
@@ -46,7 +45,7 @@
 
 #if SYS_LIGHTWEIGHT_PROT && !NO_SYS
 #if MAX_CORES > 1
-static spinlock_irqsave_t lwprot_lock;
+static spinlock_irqsave_t* lwprot_lock;
 #endif
 #endif
 
@@ -54,12 +53,7 @@ static spinlock_irqsave_t lwprot_lock;
  * may be the same as sys_jiffies or at least based on it. */
 u32_t sys_now(void)
 {
-	return (get_clock_tick() / TIMER_FREQ) * 1000;
-}
-
-u32_t sys_jiffies(void)
-{
-	return (get_clock_tick() / TIMER_FREQ) * 1000;
+	return (sys_get_ticks() / TIMER_FREQ) * 1000;
 }
 
 #if !NO_SYS
@@ -71,12 +65,10 @@ void sys_init(void)
 {
 #if SYS_LIGHTWEIGHT_PROT
 #if MAX_CORES > 1
-	spinlock_irqsave_init(&lwprot_lock);
+	sys_spinlock_irqsave_init(&lwprot_lock);
 #endif
 #endif
 }
-
-extern int32_t boot_processor;
 
 /* sys_thread_new(): Spawns a new thread with given attributes as supported
  * Note: In HermitCore this is realized as kernel tasks
@@ -90,8 +82,9 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
 	LWIP_UNUSED_ARG(name);
 	LWIP_UNUSED_ARG(stacksize);
 
-	err = create_kernel_task_on_core(&id, (entry_point_t)thread, arg, prio, boot_processor);
-	LOG_INFO("sys_thread_new: create_kernel_task err %d, id = %u, prio = %d\n", err, id, prio);
+	// Spawn a task on core 0, which is guaranteed to be the boot processor.
+	err = sys_spawn(&id, (entry_point_t)thread, arg, prio, 0);
+	//LOG_INFO("sys_thread_new: create_kernel_task err %d, id = %u, prio = %d\n", err, id, prio);
 
 	return id;
 }
@@ -100,24 +93,19 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
  * and releases system resources.
  * This semaphore also gets invalid.
  */
-void sys_sem_free(sys_sem_t* sem)
+void sys_sem_free(sys_sem_t* s)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*if (BUILTIN_EXPECT(sem != NULL, 1)) {
-		sem->valid = FALSE;
-		SYS_STATS_DEC(sem.used);
-		sem_destroy(&sem->sem);
-	}*/
+	s->valid = FALSE;
+	SYS_STATS_DEC(sem.used);
+	sys_sem_destroy(s->sem);
 }
 
 /* sys_sem_valid(): returns if semaphore is valid 
  * at the moment
  */
-int sys_sem_valid(sys_sem_t* sem)
+int sys_sem_valid(sys_sem_t* s)
 {
-	if (BUILTIN_EXPECT(sem == NULL, 0))
-		return FALSE;
-	return sem->valid;
+	return s->valid;
 }
 
 /* sys_sem_new(): creates a new semaphre with given count.
@@ -125,52 +113,49 @@ int sys_sem_valid(sys_sem_t* sem)
  */
 err_t sys_sem_new(sys_sem_t* s, u8_t count)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	return ERR_VAL;
-	/*int err;
+	int err;
 
-	if (BUILTIN_EXPECT(!s, 0))
-		return ERR_VAL;
-
-	err = sem_init(&s->sem, count);
+	err = sys_sem_init(&s->sem, count);
 	if (err < 0)
 		return ERR_VAL;
 
 	SYS_STATS_INC_USED(sem);
 	s->valid = TRUE;
 
-	return ERR_OK;*/
+	return ERR_OK;
 }
 
 /* sys_sem_set_invalid(): this semapohore becomes invalid
  * Note: this does not mean it is destroyed
  */
-void sys_sem_set_invalid(sys_sem_t * sem)
+void sys_sem_set_invalid(sys_sem_t* s)
 {
-	sem->valid = FALSE;
+	s->valid = FALSE;
 }
 
 /* sys_sem_signal(): this semaphore is signaled
  *
  */
-void sys_sem_signal(sys_sem_t* sem)
+void sys_sem_signal(sys_sem_t* s)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*sem_post(&sem->sem);*/
+	sys_sem_post(s->sem);
 }
 
 /* sys_arch_sem_wait): wait for the given semaphore for
  * a given timeout
  * Note: timeout = 0 means wait forever
  */
-u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
+u32_t sys_arch_sem_wait(sys_sem_t* s, u32_t timeout)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*int err;
+	int err;
 
-	err = sem_wait(&sem->sem, timeout);
-	if (!err)
-		return 0;*/
+	if (timeout == 0)
+		err = sys_sem_wait(s->sem);
+	else
+		err = sys_sem_timedwait(s->sem, timeout);
+
+	if (err == 0)
+		return 0;
 
 	return SYS_ARCH_TIMEOUT;
 }
@@ -178,10 +163,8 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
 /* sys_mbox_valid() : returns if the given mailbox
  * is valid
  */
-int sys_mbox_valid(sys_mbox_t * mbox)
+int sys_mbox_valid(sys_mbox_t* mbox)
 {
-	if (BUILTIN_EXPECT(mbox == NULL, 0))
-		return FALSE;
 	return mbox->valid;
 }
 
@@ -189,15 +172,14 @@ int sys_mbox_valid(sys_mbox_t * mbox)
  * amount of time.
  * Note: timeout = 0 means wait forever
  */
-u32_t sys_arch_mbox_fetch(sys_mbox_t * mbox, void **msg, u32_t timeout)
+u32_t sys_arch_mbox_fetch(sys_mbox_t* mbox, void** msg, u32_t timeout)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*int err;
+	int err;
 
 	err = mailbox_ptr_fetch(&mbox->mailbox, msg, timeout);
 	//LWIP_DEBUGF(SYS_DEBUG, ("sys_arch_mbox_fetch: %d\n", err));
 	if (!err)
-		return 0;*/
+		return 0;
 
 	return SYS_ARCH_TIMEOUT;
 }
@@ -207,12 +189,9 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t * mbox, void **msg, u32_t timeout)
  */
 void sys_mbox_free(sys_mbox_t* mbox)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*if (BUILTIN_EXPECT(mbox != NULL, 1)) {
-		mbox->valid = FALSE;
-		SYS_STATS_DEC(mbox.used);
-		mailbox_ptr_destroy(&mbox->mailbox);
-	}*/
+	mbox->valid = FALSE;
+	SYS_STATS_DEC(mbox.used);
+	mailbox_ptr_destroy(&mbox->mailbox);
 }
 
 /* sys_arch_mbox_tryfetch(): poll for new data in mailbox
@@ -220,10 +199,10 @@ void sys_mbox_free(sys_mbox_t* mbox)
  */
 u32_t sys_arch_mbox_tryfetch(sys_mbox_t* mbox, void** msg)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*int ret = mailbox_ptr_tryfetch(&mbox->mailbox, msg);
+	int ret = mailbox_ptr_tryfetch(&mbox->mailbox, msg);
 	if (ret)
-		return SYS_MBOX_EMPTY;*/
+		return SYS_MBOX_EMPTY;
+
 	return 0;
 }
 
@@ -232,21 +211,17 @@ u32_t sys_arch_mbox_tryfetch(sys_mbox_t* mbox, void** msg)
  */
 err_t sys_mbox_new(sys_mbox_t* mb, int size)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	return ERR_VAL;
+	int err;
 
-	/*int err;
-	
 	//LWIP_DEBUGF(SYS_DEBUG, ("sys_mbox_new: create mailbox with the minimum size: %d\n", size));
-	if (BUILTIN_EXPECT(!mb, 0))
-		return ERR_VAL;
 
 	mb->valid = TRUE;
 	SYS_STATS_INC_USED(mbox);
 	err = mailbox_ptr_init(&mb->mailbox);
 	if (err)
 		return ERR_MEM;
-	return ERR_OK;*/
+
+	return ERR_OK;
 }
 
 /* sys_mbox_set_invalid(): set the given mailbox to invald
@@ -262,10 +237,7 @@ void sys_mbox_set_invalid(sys_mbox_t* mbox)
  */
 err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	return ERR_MEM;
-
-	/*int err;
+	int err;
 
 	err = mailbox_ptr_trypost(&mbox->mailbox, msg);
 	if (err != 0) {
@@ -273,7 +245,7 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 		return ERR_MEM;
 	}
 
-	return ERR_OK;*/
+	return ERR_OK;
 }
 
 /* sys_mbox_post(): post new data to the mailbox
@@ -281,8 +253,7 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
  */
 void sys_mbox_post(sys_mbox_t* mbox, void* msg)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*mailbox_ptr_post(&mbox->mailbox, msg);*/
+	mailbox_ptr_post(&mbox->mailbox, msg);
 }
 
 /* sys_mutex_lock(): lock the given mutex
@@ -292,8 +263,7 @@ void sys_mbox_post(sys_mbox_t* mbox, void* msg)
  */
 void sys_mutex_lock(sys_mutex_t* mutex)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*sem_wait(mutex, 0);*/
+	sys_sem_wait(mutex);
 }
 
 /* sys_mutex_unlock(): unlock the given mutex
@@ -301,42 +271,30 @@ void sys_mutex_lock(sys_mutex_t* mutex)
  */
 void sys_mutex_unlock(sys_mutex_t* mutex)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*sem_post(mutex);*/
+	sys_sem_post(mutex);
 }
 
 /* sys_mutex_new(): create a new mutex
  *
  */
-err_t sys_mutex_new(sys_mutex_t * m)
+err_t sys_mutex_new(sys_mutex_t* mutex)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	return ERR_VAL;
-
-	/*if (BUILTIN_EXPECT(!m, 0))
-		return ERR_VAL;
 	SYS_STATS_INC_USED(mutex);
-	sem_init(m, 1);
-	return ERR_OK;*/
+	sys_sem_init(&mutex, 1);
+	return ERR_OK;
 }
 
-#if SYS_LIGHTWEIGHT_PROT
-#if MAX_CORES > 1
 sys_prot_t sys_arch_protect(void)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	/*spinlock_irqsave_lock(&lwprot_lock);*/
+	sys_spinlock_irqsave_lock(lwprot_lock);
 	return ERR_OK;
 }
 
 void sys_arch_unprotect(sys_prot_t pval)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
 	LWIP_UNUSED_ARG(pval);
-	/*spinlock_irqsave_unlock(&lwprot_lock);*/
+	sys_spinlock_irqsave_unlock(lwprot_lock);
 }
-#endif
-#endif
 
 int* __getreent(void);
 
@@ -581,74 +539,15 @@ void freeaddrinfo(struct addrinfo *res)
 
 #endif /* !NO_SYS */
 
-/* Pseudo-random generator based on Minimal Standard by
-   Lewis, Goodman, and Miller in 1969.
- 
-   I[j+1] = a*I[j] (mod m)
-
-   where a = 16807
-         m = 2147483647
-
-   Using Schrage's algorithm, a*I[j] (mod m) can be rewritten as:
-  
-     a*(I[j] mod q) - r*{I[j]/q}      if >= 0
-     a*(I[j] mod q) - r*{I[j]/q} + m  otherwise
-
-   where: {} denotes integer division 
-          q = {m/a} = 127773 
-          r = m (mod a) = 2836
-
-   note that the seed value of 0 cannot be used in the calculation as
-   it results in 0 itself
-*/
-
 #define RAND_MAX	0x7fffffff
-
-static int rand_init = 0;
-static unsigned int rand_seed = 0;
-static spinlock_t rand_lock = SPINLOCK_INIT;
-
-static int __rand(unsigned int *seed)
-{
-        long k;
-        long s = (long)(*seed);
-        if (s == 0)
-          s = 0x12345987;
-        k = s / 127773;
-        s = 16807 * (s - k * 127773) - 2836 * k;
-        if (s < 0)
-          s += 2147483647;
-        (*seed) = (unsigned int)s;
-        return (int)(s & RAND_MAX);
-}
 
 int lwip_rand(void)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-	return 4;
-
-	/*int r;
-
-#ifdef __x86_64__
-	if (has_rdrand()) {
-		r = rdrand() % RAND_MAX;
-		return r;
-	}
-#endif
-
-	spinlock_lock(&rand_lock);
-	if (!rand_init) {
-		rand_init = 1;
-		rand_seed = rdtsc() % 127;
-	}
-	r = __rand(&rand_seed);
-	spinlock_unlock(&rand_lock);
-
-	return r;*/
+	return (int)(sys_rand() & RAND_MAX);
 }
 
 #if LWIP_NETCONN_SEM_PER_THREAD
-static __thread sys_sem_t* netconn_sem = NULL;
+static __thread sem_t* netconn_sem = NULL;
 
 sys_sem_t* sys_arch_netconn_sem_get(void)
 {
@@ -657,27 +556,14 @@ sys_sem_t* sys_arch_netconn_sem_get(void)
 
 void sys_arch_netconn_sem_alloc(void)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-
-	/*sys_sem_t *sem;
-	err_t err;
-
 	if (netconn_sem != NULL)
 		return;
 
-	sem = netconn_sem = (sys_sem_t*)kmalloc(sizeof(sys_sem_t));
-	LWIP_ASSERT("failed to allocate memory for TLS semaphore", sem != NULL);
-	err = sys_sem_new(sem, 0);
-	LWIP_ASSERT("failed to initialise TLS semaphore", err == ERR_OK);
-	//LOG_INFO("Task %d creates a netconn semaphore at %p\n", per_core(current_task)->id, netconn_sem);*/
+	sys_sem_init(&netconn_sem, 0);
 }
 
 void sys_arch_netconn_sem_free(void)
 {
-	kprintf("TODO: Implement based on HermitCore-rs syscall!\n");
-
-	/*if (netconn_sem != NULL)
-		kfree(netconn_sem);*/
+	sys_sem_destroy(netconn_sem);
 }
 #endif /* LWIP_NETCONN_SEM_PER_THREAD */
-

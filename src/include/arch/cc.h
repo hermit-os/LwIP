@@ -96,38 +96,14 @@ DECLARE_PER_CORE(int, current_task_lwip_errno);
 #define set_errno(err) do { if (err) { set_per_core(current_task_lwip_errno, err); } } while(0)
 #endif
 
-/* prototypes for printf() and do_abort() */
-#ifdef __KERNEL__
-#include <hermit/stdio.h>
-#include <hermit/stdlib.h>
-#else
-#ifndef NORETURN
-#define NORETURN	__attribute__((noreturn))
-#endif
-
-int kprintf(const char*, ...);
-void NORETURN do_abort(void);
-#endif
-
 /* Plaform specific diagnostic output */
+#include <hermit/syscall.h>
+int kprintf(const char*, ...);
+
 #define LWIP_PLATFORM_DIAG(x)	do {kprintf x;} while(0)
 
 #define LWIP_PLATFORM_ASSERT(x) do {kprintf("Assertion \"%s\" failed at line %d in %s\n", \
-                                     x, __LINE__, __FILE__); do_abort();} while(0)
-
-#if NO_SYS
-typedef uint32_t sys_prot_t;
-
-static inline sys_prot_t sys_arch_protect(void)
-{
-	return irq_nested_disable();
-}
-
-static inline void sys_arch_unprotect(sys_prot_t pval)
-{
-	irq_nested_enable(pval);
-}
-#endif
+                                     x, __LINE__, __FILE__); sys_exit(-1);} while(0)
 
 #define LWIP_FD_BIT	(1 << 30)
 
