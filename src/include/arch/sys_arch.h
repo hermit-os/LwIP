@@ -10,11 +10,11 @@
 #define EWOULDBLOCK	EAGAIN	/* Operation would block */
 #define HIGH_PRIO 16
 
-typedef sem_t* sys_mutex_t;
+typedef HermitSemaphore* sys_mutex_t;
 
 typedef struct
 {
-	sem_t* sem;
+	HermitSemaphore* sem;
 	int valid;
 } sys_sem_t;
 

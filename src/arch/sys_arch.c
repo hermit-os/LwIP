@@ -45,7 +45,7 @@
 
 #if SYS_LIGHTWEIGHT_PROT && !NO_SYS
 #if MAX_CORES > 1
-static spinlock_irqsave_t* lwprot_lock;
+static HermitSpinlockIrqSave* lwprot_lock;
 #endif
 #endif
 
