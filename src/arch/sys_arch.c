@@ -43,11 +43,7 @@
 #define FALSE	0
 #endif
 
-#if SYS_LIGHTWEIGHT_PROT && !NO_SYS
-#if MAX_CORES > 1
 static HermitSpinlockIrqSave* lwprot_lock;
-#endif
-#endif
 
 /** Returns the current time in milliseconds,
  * may be the same as sys_jiffies or at least based on it. */
@@ -63,11 +59,7 @@ u32_t sys_now(void)
  */
 void sys_init(void)
 {
-#if SYS_LIGHTWEIGHT_PROT
-#if MAX_CORES > 1
 	sys_spinlock_irqsave_init(&lwprot_lock);
-#endif
-#endif
 }
 
 /* sys_thread_new(): Spawns a new thread with given attributes as supported
