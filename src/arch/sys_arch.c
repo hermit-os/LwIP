@@ -614,7 +614,7 @@ int lwip_rand(void)
 	spinlock_lock(&rand_lock);
 	if (!rand_init) {
 		rand_init = 1;
-		rand_seed = rdtsc() % 127;
+		rand_seed = get_rdtsc() % 127;
 	}
 	r = __rand(&rand_seed);
 	spinlock_unlock(&rand_lock);
