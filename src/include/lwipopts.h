@@ -292,6 +292,12 @@
  */
 #define SO_REUSE			1
 
+/**
+ * define them to binary semaphores as mutex
+ */
+#define LWIP_COMPAT_MUTEX		1
+#define LWIP_COMPAT_MUTEX_ALLOWED	1
+
 /* DEBUG options */
 #define LWIP_DEBUG		1
 #define DHCP_DEBUG		LWIP_DBG_OFF

@@ -43,7 +43,7 @@
 #define FALSE	0
 #endif
 
-static HermitSpinlockIrqSave* lwprot_lock;
+static HermitSpinlockIrqSave* lwprot_lock = NULL;
 
 /** Returns the current time in milliseconds,
  * may be the same as sys_jiffies or at least based on it. */
@@ -55,7 +55,6 @@ u32_t sys_now(void)
 #if !NO_SYS
 
 /* sys_init(): init needed system resources
- * Note: At the moment there are none
  */
 void sys_init(void)
 {
@@ -76,7 +75,7 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
 
 	// Spawn a task on core 0, which is guaranteed to be the boot processor.
 	err = sys_spawn(&id, (entry_point_t)thread, arg, prio, 0);
-	//LOG_INFO("sys_thread_new: create_kernel_task err %d, id = %u, prio = %d\n", err, id, prio);
+	//LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: create_kernel_task err %d, id = %u, prio = %d\n", err, id, prio));
 
 	return id;
 }
@@ -92,7 +91,7 @@ void sys_sem_free(sys_sem_t* s)
 	sys_sem_destroy(s->sem);
 }
 
-/* sys_sem_valid(): returns if semaphore is valid 
+/* sys_sem_valid(): returns if semaphore is valid
  * at the moment
  */
 int sys_sem_valid(sys_sem_t* s)
@@ -139,12 +138,7 @@ void sys_sem_signal(sys_sem_t* s)
  */
 u32_t sys_arch_sem_wait(sys_sem_t* s, u32_t timeout)
 {
-	int err;
-
-	if (timeout == 0)
-		err = sys_sem_wait(s->sem);
-	else
-		err = sys_sem_timedwait(s->sem, timeout);
+	int err = sys_sem_timedwait(s->sem, timeout);
 
 	if (err == 0)
 		return 0;
@@ -246,34 +240,6 @@ err_t sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 void sys_mbox_post(sys_mbox_t* mbox, void* msg)
 {
 	mailbox_ptr_post(&mbox->mailbox, msg);
-}
-
-/* sys_mutex_lock(): lock the given mutex
- * Note: There is no specific mutex in 
- * HermitCore so we use a semaphore with
- * 1 element
- */
-void sys_mutex_lock(sys_mutex_t* mutex)
-{
-	sys_sem_wait(mutex);
-}
-
-/* sys_mutex_unlock(): unlock the given mutex
- *
- */
-void sys_mutex_unlock(sys_mutex_t* mutex)
-{
-	sys_sem_post(mutex);
-}
-
-/* sys_mutex_new(): create a new mutex
- *
- */
-err_t sys_mutex_new(sys_mutex_t* mutex)
-{
-	SYS_STATS_INC_USED(mutex);
-	sys_sem_init(&mutex, 1);
-	return ERR_OK;
 }
 
 sys_prot_t sys_arch_protect(void)
@@ -539,10 +505,11 @@ int lwip_rand(void)
 }
 
 #if LWIP_NETCONN_SEM_PER_THREAD
-static __thread sem_t* netconn_sem = NULL;
+static __thread sem_t netconn_sem;
 
 sys_sem_t* sys_arch_netconn_sem_get(void)
 {
+	kprintf("netcon %p\n", netconn_sem);
 	return netconn_sem;
 }
 
@@ -551,11 +518,31 @@ void sys_arch_netconn_sem_alloc(void)
 	if (netconn_sem != NULL)
 		return;
 
-	sys_sem_init(&netconn_sem, 0);
+	sys_sem_new(&netconn_sem, 0);
 }
 
 void sys_arch_netconn_sem_free(void)
 {
-	sys_sem_destroy(netconn_sem);
+	sys_sem_destroy(&netconn_sem);
 }
 #endif /* LWIP_NETCONN_SEM_PER_THREAD */
+
+static void tcpip_init_done(void* arg)
+{
+	sys_sem_t* s = (sys_sem_t*)arg;
+
+	sys_sem_signal(s);
+}
+
+void init_lwip(void)
+{
+	sys_sem_t	s;
+
+	if (sys_sem_new(&s, 0) != ERR_OK)
+		LWIP_ASSERT("Failed to create semaphore", 0);
+
+	tcpip_init(tcpip_init_done, &s);
+	sys_sem_wait(&s);
+	kprintf("LwIP intialized\n");
+	sys_sem_free(&s);
+}
