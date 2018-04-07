@@ -46,17 +46,12 @@
 #include <netif/etharp.h>
 
 #include "uhyve-net.h"
+#include "io.h"
 
 #define UHYVE_IRQ	11
 
 static int8_t uhyve_net_init_ok = 0;
 static struct netif* mynetif = NULL;
-
-/* Write a double word (4 bytes) to an IO port */
-inline static void outportl(unsigned short _port, unsigned int _data)
-{
-	asm volatile("outl %1, %0"::"dN"(_port), "a"(_data));
-}
 
 static int uhyve_net_write_sync(uint8_t *data, int n)
 {
@@ -261,11 +256,13 @@ __asm__(".global uhyve_irqhandler\n"
 //--------------------------------- INIT -----------------------------------------
 
 static uhyve_netif_t static_uhyve_netif;
+static uhyve_netif_t* uhyve_netif = NULL;
 
 static err_t uhyve_netif_init (struct netif* netif)
 {
 	uint8_t tmp8 = 0;
-	static uint8_t num = 0;
+
+	LWIP_ASSERT("netif != NULL", (netif != NULL));
 
 	kprintf("uhyve_netif_init: Found uhyve_net interface\n");
 
@@ -278,11 +275,10 @@ static err_t uhyve_netif_init (struct netif* netif)
 
 	memset(uhyve_netif, 0x00, sizeof(uhyve_netif_t));
 #else
-	// currently we support only one device => use a static variable uhyve_netif
-	uhyve_netif_t* uhyve_netif = &static_uhyve_netif;
+	LWIP_ASSERT("uhyve_netif == NULL", (uhyve_netif == NULL));
 
-	if (num != 0)
-		return ERR_IF;
+	// currently we support only one device => use a static variable uhyve_netif
+	uhyve_netif = &static_uhyve_netif;
 #endif
 
 #if 0
@@ -335,7 +331,7 @@ static err_t uhyve_netif_init (struct netif* netif)
 
 	netif->name[0] = 'e';
 	netif->name[1] = 'n';
-	netif->num = num++;
+	netif->num = 0;
 	/* downward functions */
 	netif->output = etharp_output;
 	netif->linkoutput = uhyve_netif_output;
