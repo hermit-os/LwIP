@@ -309,6 +309,8 @@ void rtl8139if_handler(void)
 		outportw(rtl8139if->iobase + IMR, INT_MASK_NO_ROK);
 	else
 		outportw(rtl8139if->iobase + IMR, INT_MASK); // enable interrupts
+
+	eoi();
 }
 
 void rtl8139if_irq_handler();
@@ -406,7 +408,7 @@ static err_t rtl8139if_init(struct netif* netif)
 	// determine the hardware revision
 	//tmp32 = (tmp32 & TCR_HWVERID) >> TCR_HWOFFSET;
 
-	irq_install_handler(32+rtl8139if->irq, rtl8139if_irq_handler);
+	irq_install_handler(rtl8139if->irq, rtl8139if_irq_handler);
 
 	/* hardware address length */
 	netif->hwaddr_len = ETHARP_HWADDR_LEN;

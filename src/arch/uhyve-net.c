@@ -218,6 +218,8 @@ void uhyve_netif_poll(void)
 			LINK_STATS_INC(link.drop);
 		}
 	}
+
+	eoi();
 }
 
 #if 0
@@ -320,7 +322,7 @@ static err_t uhyve_netif_init (struct netif* netif)
 	uhyve_netif->ethaddr = (struct eth_addr *)netif->hwaddr;
 
 	kprintf("uhye_netif uses irq %d\n", UHYVE_IRQ);
-	irq_install_handler(32+UHYVE_IRQ, uhyve_irqhandler);
+	irq_install_handler(UHYVE_IRQ, uhyve_irqhandler);
 
 	/*
 	 * Initialize the snmp variables and counters inside the struct netif.
