@@ -252,7 +252,7 @@ __asm__(".global uhyve_irqhandler\n"
 	"pop %rdx\n\t"
 	"pop %rcx\n\t"
 	"pop %rax\n\t"
-        "iret");
+        "iretq");
 #endif
 
 //--------------------------------- INIT -----------------------------------------

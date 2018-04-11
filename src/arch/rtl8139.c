@@ -337,7 +337,7 @@ __asm__(".global rtl8139if_irq_handler\n"
 	"pop %rdx\n\t"
 	"pop %rcx\n\t"
 	"pop %rax\n\t"
-        "iret");
+        "iretq");
 
 static rtl1839if_t static_rtl1839if;
 static rtl1839if_t* rtl8139if = NULL;
