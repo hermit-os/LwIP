@@ -47,7 +47,7 @@ size_t c_strlen(const char* str)
 	return strlen(str);
 }
 
-int get_qemu_socket(void)
+int get_proxy_socket(void)
 {
 	struct sockaddr_in6 server, client;
 	int s = -1, c = -1;
