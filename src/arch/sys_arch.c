@@ -50,6 +50,9 @@ static spinlock_irqsave_t lwprot_lock;
 #endif
 #endif
 
+// forward declaration of a helper function
+static void __rand_init(void);
+
 /** Returns the current time in milliseconds,
  * may be the same as sys_jiffies or at least based on it. */
 u32_t sys_now(void)
@@ -74,6 +77,7 @@ void sys_init(void)
 	spinlock_irqsave_init(&lwprot_lock);
 #endif
 #endif
+	__rand_init();
 }
 
 extern int32_t boot_processor;
@@ -582,11 +586,15 @@ void freeaddrinfo(struct addrinfo *res)
 
 #define RAND_MAX	0x7fffffff
 
-static int rand_init = 0;
 static unsigned int rand_seed = 0;
-static spinlock_t rand_lock = SPINLOCK_INIT;
+static spinlock_irqsave_t rand_lock = SPINLOCK_IRQSAVE_INIT;
 
-static int __rand(unsigned int *seed)
+static void __rand_init(void)
+{
+	rand_seed = get_rdtsc() % 127;
+}
+
+static inline int __rand(unsigned int *seed)
 {
         long k;
         long s = (long)(*seed);
@@ -611,13 +619,9 @@ int lwip_rand(void)
 	}
 #endif
 
-	spinlock_lock(&rand_lock);
-	if (!rand_init) {
-		rand_init = 1;
-		rand_seed = get_rdtsc() % 127;
-	}
+	spinlock_irqsave_lock(&rand_lock);
 	r = __rand(&rand_seed);
-	spinlock_unlock(&rand_lock);
+	spinlock_irqsave_unlock(&rand_lock);
 
 	return r;
 }
