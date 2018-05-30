@@ -67,15 +67,21 @@ void sys_init(void)
 sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
 		int stacksize, int prio)
 {
+	static int already_called = FALSE;
 	int err;
 	sys_thread_t id;
 
 	LWIP_UNUSED_ARG(name);
 	LWIP_UNUSED_ARG(stacksize);
+	LWIP_ASSERT("lwIP sys_thread_new must only be called once for the TCP/IP thread!", !already_called);
+
+	already_called = TRUE;
 
 	// Spawn a task on core 0, which is guaranteed to be the boot processor.
 	err = sys_spawn(&id, (entry_point_t)thread, arg, prio, 0);
-	//LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: create_kernel_task err %d, id = %u, prio = %d\n", err, id, prio));
+
+	// Register the returned task ID as the TCP/IP task to HermitCore.
+	sys_lwip_register_tcpip_task(id);
 
 	return id;
 }
