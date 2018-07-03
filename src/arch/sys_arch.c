@@ -49,7 +49,10 @@ static HermitSpinlockIrqSave* lwprot_lock = NULL;
  * may be the same as sys_jiffies or at least based on it. */
 u32_t sys_now(void)
 {
-	return (sys_get_ticks() / TIMER_FREQ) * 1000;
+	struct timeval tv;
+
+	sys_gettimeofday((HermitTimeval*)&tv, NULL);
+	return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 #if !NO_SYS
