@@ -5,8 +5,6 @@
 #include <hermit/mailbox.h>
 #include <hermit/syscall.h>
 
-#define sys_jiffies() sys_now()
-
 #define EWOULDBLOCK	EAGAIN	/* Operation would block */
 #define HIGH_PRIO 16
 
