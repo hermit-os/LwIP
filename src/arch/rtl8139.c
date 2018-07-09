@@ -30,6 +30,7 @@
 #include <hermit/stddef.h>
 #include <hermit/stdio.h>
 #include <hermit/string.h>
+#include <hermit/syscall.h>
 #include <lwip/sys.h>
 #include <lwip/stats.h>
 #include <lwip/netif.h>
@@ -432,7 +433,7 @@ static err_t rtl8139if_init(struct netif* netif)
 	 * The RST bit must be checked to make sure that the chip has finished the reset.
 	 * If the RST bit is high (1), then the reset is still in operation.
 	 */
-	udelay(10000);
+	sys_usleep(10000);
 	tmp16 = 10000;
 	while ((inportb(rtl8139if->iobase + CR) & CR_RST) && tmp16 > 0) {
 		tmp16--;
