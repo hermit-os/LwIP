@@ -477,6 +477,8 @@ int kprintf(const char *fmt, ...)
 {
 	int ret;
 
+	sys_acquire_putchar_lock();
+
 	/* http://www.pagetable.com/?p=298 */
 	va_list ap;
 
@@ -486,6 +488,8 @@ int kprintf(const char *fmt, ...)
 		       NULL,	 	/* additional argument for the output function */
 		       10, ap);
 	va_end(ap);
+
+	sys_release_putchar_lock();
 
 	return ret;
 }
