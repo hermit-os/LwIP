@@ -46,7 +46,7 @@
 #include <netif/etharp.h>
 
 #include "uhyve-net.h"
-#include "io.h"
+#include <arch_io.h>
 
 #define UHYVE_IRQ	11
 
@@ -222,12 +222,7 @@ void uhyve_netif_poll(void)
 	eoi();
 }
 
-#if 0
-static void uhyve_irqhandler(struct state* s)
-{
-	uhyve_netif_poll();
-}
-#else
+#if defined(__x86_64__)
 void uhyve_irqhandler(void);
 
 __asm__(".global uhyve_irqhandler\n"
@@ -253,6 +248,13 @@ __asm__(".global uhyve_irqhandler\n"
 	"pop %rcx\n\t"
 	"pop %rax\n\t"
         "iretq");
+#elif defined(__aarch64__)
+void uhyve_irqhandler(void)
+{
+	kprintf("TODO: Implement uhyve_irqhandler for AArch64\n");
+}
+#else
+#error Invalid architecture
 #endif
 
 //--------------------------------- INIT -----------------------------------------

@@ -42,7 +42,6 @@
 #include <hermit/stdlib.h>
 #include <hermit/string.h>
 #include <hermit/ctype.h>
-#include <asm/limits.h>
 
 /*
  * Find the first occurrence of find in s.

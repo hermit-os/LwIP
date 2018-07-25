@@ -27,6 +27,8 @@
  * This code based mostly on the online manual http://www.lowlevel.eu/wiki/RTL8139
  */
 
+#ifdef __x86_64__
+
 #include <hermit/stddef.h>
 #include <hermit/stdio.h>
 #include <hermit/string.h>
@@ -587,3 +589,4 @@ int init_rtl8139_netif(uint64_t freq)
 
 	return 0;
 }
+#endif

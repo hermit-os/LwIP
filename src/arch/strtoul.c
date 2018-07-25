@@ -41,7 +41,7 @@
 /* HermitCore prelude */
 #include <hermit/stddef.h>
 #include <hermit/ctype.h>
-#include <asm/limits.h>
+#include <arch_limits.h>
 
 /*
  * Convert a string to an unsigned long integer.
