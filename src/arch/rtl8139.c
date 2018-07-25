@@ -42,8 +42,8 @@
 #include <lwip/ethip6.h>
 #include <lwip/netifapi.h>
 #include <netif/etharp.h>
+#include <arch_io.h>
 #include "pci.h"
-#include "io.h"
 #include "rtl8139.h"
 
 #define RX_BUF_LEN 	8192
