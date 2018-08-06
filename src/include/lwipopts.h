@@ -148,7 +148,18 @@
  * when opening a connection. For the transmit size, this MSS sets
  * an upper limit on the MSS advertised by the remote host.
  */
-#define TCP_MSS			1460
+#define TCP_MSS				1440
+
+/**
+ * TCP_WND: The size of a TCP window.  This must be at least
+ * (2 * TCP_MSS) for things to work well
+ */
+#define TCP_WND				(16 * TCP_MSS)
+
+/**
+ * TCP_SND_BUF: TCP sender buffer space (bytes).
+ */
+#define TCP_SND_BUF			(16 * TCP_MSS)
 
 /**
  * LWIP_BROADCAST_PING==1: respond to broadcast pings (default is unicast only)
@@ -219,28 +230,6 @@
 #define MEMP_NUM_TCP_PCB_LISTEN	0x30
 
 /**
- * MEMP_NUM_NETCONN: the number of struct netconns.
- * (only needed if you use the sequential API, like api_lib.c)
- * MEM_SIZE: the size of the heap memory. If the application will send
- * a lot of data that needs to be copied, this should be set high.
- */
-#define MEMP_NUM_NETCONN	16
-
-/**
- * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used
- * for callback/timeout API communication.
- * (only needed if you use tcpip.c)
- */
-#define MEMP_NUM_TCPIP_MSG_API	16
-
-/**
- * MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used
- * for incoming packets.
- * (only needed if you use tcpip.c)
- */
-#define MEMP_NUM_TCPIP_MSG_INPKT	16
-
-/**
  * DEFAULT_THREAD_PRIO: The priority assigned to any other lwIP thread.
  * The priority value itself is platform-dependent, but is passed to
  * sys_thread_new() when the thread is created.
@@ -248,10 +237,60 @@
 #define DEFAULT_THREAD_PRIO	NORMAL_PRIO
 
 /**
+ * PBUF_POOL_SIZE: the number of buffers in the pbuf pool.
+ */
+#define PBUF_POOL_SIZE			0x80
+
+/**
+ * MEMP_NUM_UDP_PCB: the number of UDP protocol control blocks. One
+ * per active UDP "connection".
+ * (requires the LWIP_UDP option)
+ */
+#define MEMP_NUM_UDP_PCB		0x30
+
+/**
+ * MEMP_NUM_TCP_PCB: the number of simulatenously active TCP connections.
+ * (requires the LWIP_TCP option)
+ */
+#define MEMP_NUM_TCP_PCB		0x30
+
+/**
+ * MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP connections.
+ * (requires the LWIP_TCP option)
+ */
+#define MEMP_NUM_TCP_PCB_LISTEN	0x30
+
+/**
  * MEM_SIZE: the size of the heap memory. If the application will send
  * a lot of data that needs to be copied, this should be set high.
  */
-#define MEM_SIZE		(16*0x1000)
+#define MEM_SIZE		(32*0x1000)
+
+/**
+ * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are useod
+ * for callback/timeout API communication.
+ * (only needed if you use tcpip.c)
+ */
+#define MEMP_NUM_TCPIP_MSG_API			0x40
+
+/**
+ * MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used
+ * for incoming packets.
+ * (only needed if you use tcpip.c)
+ */
+#define MEMP_NUM_TCPIP_MSG_INPKT		0x40
+
+/**
+ * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
+ * (requires the LWIP_TCP option)
+ */
+#define MEMP_NUM_TCP_SEG				TCP_SND_QUEUELEN
+
+/**
+ * MEMP_NUM_NETCONN: the number of struct netconns.
+ * (only needed if you use the sequential API, like api_lib.c)
+ */
+#define MEMP_NUM_NETCONN				32
 
 #ifndef __KERNEL__
 #define LWIP_TIMEVAL_PRIVATE		0
@@ -293,7 +332,7 @@
 #define SO_REUSE			1
 
 /* DEBUG options */
-#define LWIP_DEBUG		1
+//#define LWIP_DEBUG		1
 #define DHCP_DEBUG		LWIP_DBG_OFF
 #define ETHARP_DEBUG		LWIP_DBG_OFF
 #define TCPIP_DEBUG		LWIP_DBG_OFF
