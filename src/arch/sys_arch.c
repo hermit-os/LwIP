@@ -436,6 +436,19 @@ int connect(int s, const struct sockaddr *name, socklen_t namelen)
 	return 0;
 }
 
+int poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+	int ret = lwip_poll(fds, nfds, timeout);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
 int listen(int s, int backlog)
 {
 	int ret = lwip_listen(s & ~LWIP_FD_BIT, backlog);
