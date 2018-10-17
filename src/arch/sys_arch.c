@@ -274,6 +274,11 @@ void sys_mbox_post(sys_mbox_t* mbox, void* msg)
 	mailbox_ptr_post(&mbox->mailbox, msg);
 }
 
+err_t sys_mbox_trypost_fromisr(sys_mbox_t *q, void *msg)
+{
+  return sys_mbox_trypost(q, msg);
+}
+
 /* sys_mutex_lock(): lock the given mutex
  * Note: There is no specific mutex in 
  * HermitCore so we use a semaphore with
@@ -388,8 +393,13 @@ int getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
-		return -1;
+		if (errno == ENOPROTOOPT)
+		{
+			//kprintf("getsockopt: ignore unsupported protocol 0x%x\n", optname);
+		} else {
+			*libc_errno() = errno;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -401,8 +411,13 @@ int setsockopt(int s, int level, int optname, const void *optval, socklen_t optl
 
 	if (ret)
 	{
-		*libc_errno() = errno;
-		return -1;
+		if (errno == ENOPROTOOPT)
+		{
+			//kprintf("setsockopt: ignore unsupported protocol 0x%x\n", optname);
+		} else {
+			*libc_errno() = errno;
+			return -1;
+		}
 	}
 
 	return 0;

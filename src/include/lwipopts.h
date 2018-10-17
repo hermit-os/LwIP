@@ -60,6 +60,8 @@
  */
 #define LWIP_NETIF_API		!(NO_SYS == 1)
 
+#define DHCP_CLIENT_PORT	68
+
 /**
  * LWIP_DHCP==1: Enable DHCP module.
  */
@@ -228,6 +230,13 @@
  * (requires the LWIP_TCP option)
  */
 #define MEMP_NUM_TCP_PCB_LISTEN	0x30
+
+/**
+ * MEMP_NUM_SYS_TIMEOUT: the number of simultaneously active timeouts.
+ * The default number of timeouts is calculated here for all enabled modules.
+ * The formula expects settings to be either '0' or '1'.
+ */
+#define MEMP_NUM_SYS_TIMEOUT	(LWIP_NUM_SYS_TIMEOUT_INTERNAL + 8)
 
 /**
  * DEFAULT_THREAD_PRIO: The priority assigned to any other lwIP thread.
