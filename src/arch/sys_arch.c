@@ -251,6 +251,43 @@ void sys_mbox_post(sys_mbox_t* mbox, void* msg)
 	mailbox_ptr_post(&mbox->mailbox, msg);
 }
 
+err_t sys_mbox_trypost_fromisr(sys_mbox_t *q, void *msg)
+{
+  return sys_mbox_trypost(q, msg);
+}
+
+/* sys_mutex_lock(): lock the given mutex
+ * Note: There is no specific mutex in 
+ * HermitCore so we use a semaphore with
+ * 1 element
+ */
+void sys_mutex_lock(sys_mutex_t* mutex)
+{
+	sem_wait(mutex, 0);
+}
+
+/* sys_mutex_unlock(): unlock the given mutex
+ *
+ */
+void sys_mutex_unlock(sys_mutex_t* mutex)
+{
+	sem_post(mutex);
+}
+
+/* sys_mutex_new(): create a new mutex
+ *
+ */
+err_t sys_mutex_new(sys_mutex_t * m)
+{
+	if (BUILTIN_EXPECT(!m, 0))
+		return ERR_VAL;
+	SYS_STATS_INC_USED(mutex);
+	sem_init(m, 1);
+	return ERR_OK;
+}
+
+#if SYS_LIGHTWEIGHT_PROT
+#if MAX_CORES > 1
 sys_prot_t sys_arch_protect(void)
 {
 	sys_spinlock_irqsave_lock(lwprot_lock);
@@ -331,8 +368,13 @@ int getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
-		return -1;
+		if (errno == ENOPROTOOPT)
+		{
+			//kprintf("getsockopt: ignore unsupported protocol 0x%x\n", optname);
+		} else {
+			*libc_errno() = errno;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -344,8 +386,13 @@ int setsockopt(int s, int level, int optname, const void *optval, socklen_t optl
 
 	if (ret)
 	{
-		*libc_errno() = errno;
-		return -1;
+		if (errno == ENOPROTOOPT)
+		{
+			//kprintf("setsockopt: ignore unsupported protocol 0x%x\n", optname);
+		} else {
+			*libc_errno() = errno;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -354,6 +401,19 @@ int setsockopt(int s, int level, int optname, const void *optval, socklen_t optl
 int connect(int s, const struct sockaddr *name, socklen_t namelen)
 {
 	int ret = lwip_connect(s & ~LWIP_FD_BIT, name, namelen);
+
+	if (ret)
+	{
+		*libc_errno() = errno;
+		return -1;
+	}
+
+	return 0;
+}
+
+int poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+	int ret = lwip_poll(fds, nfds, timeout);
 
 	if (ret)
 	{
