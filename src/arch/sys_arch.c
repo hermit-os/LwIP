@@ -256,38 +256,7 @@ err_t sys_mbox_trypost_fromisr(sys_mbox_t *q, void *msg)
   return sys_mbox_trypost(q, msg);
 }
 
-/* sys_mutex_lock(): lock the given mutex
- * Note: There is no specific mutex in 
- * HermitCore so we use a semaphore with
- * 1 element
- */
-void sys_mutex_lock(sys_mutex_t* mutex)
-{
-	sem_wait(mutex, 0);
-}
-
-/* sys_mutex_unlock(): unlock the given mutex
- *
- */
-void sys_mutex_unlock(sys_mutex_t* mutex)
-{
-	sem_post(mutex);
-}
-
-/* sys_mutex_new(): create a new mutex
- *
- */
-err_t sys_mutex_new(sys_mutex_t * m)
-{
-	if (BUILTIN_EXPECT(!m, 0))
-		return ERR_VAL;
-	SYS_STATS_INC_USED(mutex);
-	sem_init(m, 1);
-	return ERR_OK;
-}
-
 #if SYS_LIGHTWEIGHT_PROT
-#if MAX_CORES > 1
 sys_prot_t sys_arch_protect(void)
 {
 	sys_spinlock_irqsave_lock(lwprot_lock);
@@ -299,6 +268,7 @@ void sys_arch_unprotect(sys_prot_t pval)
 	LWIP_UNUSED_ARG(pval);
 	sys_spinlock_irqsave_unlock(lwprot_lock);
 }
+#endif
 
 int* __getreent(void);
 
