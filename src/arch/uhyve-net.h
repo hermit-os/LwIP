@@ -81,10 +81,6 @@ typedef struct {
 typedef struct uhyve_netif {
 	struct eth_addr *ethaddr;
 	/* Add whatever per-interface state that is needed here. */
-	uint8_t tx_buf[TX_BUF_NUM][TX_BUF_LEN];
-	uint32_t tx_queue;
-	uint32_t tx_complete;
-	uint8_t tx_inuse[TX_BUF_NUM];
 	uint8_t rx_buf[RX_BUF_LEN + 16];
 } uhyve_netif_t;
 
