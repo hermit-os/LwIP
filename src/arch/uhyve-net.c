@@ -328,22 +328,47 @@ static err_t uhyve_netif_init (struct netif* netif)
 	return ERR_OK;
 }
 
+typedef struct kernel_header {
+	uint32_t magic_number;
+	uint32_t version;
+	uint64_t base;
+	uint64_t limit;
+	uint64_t image_size;
+	uint64_t current_stack_address;
+	uint64_t current_percore_address;
+	uint64_t host_logical_addr;
+	uint64_t boot_gtod;
+	uint64_t mb_info;
+	uint64_t cmdline;
+	uint64_t cmdsize;
+	uint32_t cpu_freq;
+	uint32_t boot_processor;
+	uint32_t cpu_online;
+	uint32_t possible_cpus;
+	uint32_t current_boot_id;
+	uint16_t uartport;
+	uint8_t single_kernel;
+	uint8_t uhyve;
+	uint8_t hcip[4];
+	uint8_t hcgateway[4];
+	uint8_t hcmask[4];
+} kernel_header_t;
+
 static struct netif default_netif;
-extern uint8_t hcip[4];
-extern uint8_t hcgateway[4];
-extern uint8_t hcmask[4];
+extern kernel_start;
 
 int init_uhyve_netif(void)
 {
 	ip_addr_t	ipaddr;
 	ip_addr_t	netmask;
 	ip_addr_t	gw;
+	kernel_header_t* kheader = (kernel_header_t*) &kernel_start;
 
 	if (uhyve_net_stat()) {
 		/* Set network address variables */
-		IP_ADDR4(&gw, hcgateway[0], hcgateway[1], hcgateway[2], hcgateway[3]);
-		IP_ADDR4(&ipaddr, hcip[0], hcip[1], hcip[2], hcip[3]);
-		IP_ADDR4(&netmask, hcmask[0], hcmask[1], hcmask[2], hcmask[3]);
+		IP_ADDR4(&gw, kheader->hcgateway[0], kheader->hcgateway[1], kheader->hcgateway[2], kheader->hcgateway[3]);
+		IP_ADDR4(&ipaddr, kheader->hcip[0], kheader->hcip[1], kheader->hcip[2], kheader->hcip[3]);
+		IP_ADDR4(&netmask, kheader->hcmask[0], kheader->hcmask[1], kheader->hcmask[2], kheader->hcmask[3]);
 
 		if ((netifapi_netif_add(&default_netif, ip_2_ip4(&ipaddr), ip_2_ip4(&netmask), ip_2_ip4(&gw), NULL, uhyve_netif_init, ethernet_input)) != ERR_OK) {
 			kprintf("Unable to add the uhyve_net network interface\n");
