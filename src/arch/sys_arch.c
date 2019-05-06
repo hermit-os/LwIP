@@ -285,7 +285,7 @@ int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 
 	if (fd < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -299,7 +299,7 @@ int bind(int s, const struct sockaddr *name, socklen_t namelen)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -312,7 +312,7 @@ int getpeername(int s, struct sockaddr *name, socklen_t *namelen)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -325,7 +325,7 @@ int getsockname(int s, struct sockaddr *name, socklen_t *namelen)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -342,7 +342,7 @@ int getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
 		{
 			//kprintf("getsockopt: ignore unsupported protocol 0x%x\n", optname);
 		} else {
-			*libc_errno() = errno;
+			//*libc_errno() = errno;
 			return -1;
 		}
 	}
@@ -360,7 +360,7 @@ int setsockopt(int s, int level, int optname, const void *optval, socklen_t optl
 		{
 			//kprintf("setsockopt: ignore unsupported protocol 0x%x\n", optname);
 		} else {
-			*libc_errno() = errno;
+			//*libc_errno() = errno;
 			return -1;
 		}
 	}
@@ -374,7 +374,7 @@ int connect(int s, const struct sockaddr *name, socklen_t namelen)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -387,7 +387,7 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -400,7 +400,7 @@ int listen(int s, int backlog)
 
 	if (ret)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -413,7 +413,7 @@ int recv(int s, void *mem, size_t len, int flags)
 
 	if (ret < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -426,7 +426,7 @@ int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, soc
 
 	if (ret < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -439,7 +439,7 @@ int send(int s, const void *dataptr, size_t size, int flags)
 
 	if (ret < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -452,7 +452,7 @@ int sendto(int s, const void *dataptr, size_t size, int flags, const struct sock
 
 	if (ret < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -465,7 +465,7 @@ int socket(int domain, int type, int protocol)
 
 	if (fd < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
@@ -480,7 +480,7 @@ int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, st
 
 	if (ret < 0)
 	{
-		*libc_errno() = errno;
+		//*libc_errno() = errno;
 		return -1;
 	}
 
