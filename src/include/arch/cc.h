@@ -129,6 +129,8 @@ typedef struct fd_set {
 	unsigned char fd_bits [(FD_SETSIZE+7)/8];
 } fd_set;
 
+#include <sys/poll.h>
+
 int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
 int bind(int s, const struct sockaddr *name, socklen_t namelen);
 int getpeername (int s, struct sockaddr *name, socklen_t *namelen);
@@ -137,7 +139,7 @@ int getsockopt (int s, int level, int optname, void *optval, socklen_t *optlen);
 int setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen);
 int connect(int s, const struct sockaddr *name, socklen_t namelen);
 int listen(int s, int backlog);
-int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+//int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 int recv(int s, void *mem, size_t len, int flags);
 int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen);
 int send(int s, const void *dataptr, size_t size, int flags);
