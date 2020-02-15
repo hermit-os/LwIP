@@ -1,6 +1,6 @@
 /*
- * Copyright 2017 RWTH Aachen University
- * Author(s): Tim van de Kamp <tim.van.de.kamp@rwth-aachen.de>
+ * Copyright 2020 RWTH Aachen University
+ * Author(s): Stefan Lankes <slankes@eonerc.rwth-aachen.de>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -23,8 +23,6 @@
  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * This code based mostly on the online manual http://www.lowlevel.eu/wiki/RTL8139
  */
 
 #ifndef __NET_UHYVE_NET_H__
@@ -34,54 +32,50 @@
 
 #define MIN(a, b)	(a) < (b) ? (a) : (b)
 
-#define RX_BUF_LEN 2048
-#define TX_BUF_LEN 2048
-#define TX_BUF_NUM 1		//number of tx buffer
-
 #define UHYVE_PORT_NETINFO      0x600
 #define UHYVE_PORT_NETWRITE     0x640
-#define UHYVE_PORT_NETREAD      0x680
-#define UHYVE_PORT_NETSTAT	0x700
+#define SHAREDQUEUE_START       0x80000
+#define UHYVE_NET_MTU           1500
+#define UHYVE_QUEUE_SIZE        8
 
-// UHYVE_PORT_NETINFO
-typedef struct {
-        /* OUT */
-        char mac_str[18];
-} uhyve_netinfo_t;
+void uhyve_get_ip(uint8_t*);
+void uhyve_get_gateway(uint8_t*);
+void uhyve_get_mask(uint8_t*);
+void sys_yield(void);
 
-// UHYVE_PORT_NETWRITE
-typedef struct {
-        /* IN */
-        const void* data;
-        size_t len;
-        /* OUT */
-        int ret;
-} uhyve_netwrite_t;
+#define SHAREDQUEUE_FLOOR(x)	((x) & !0x3f)
+#define SHAREDQUEUE_CEIL(x)		(((x) + 0x3f) & ~0x3f)
 
-// UHYVE_PORT_NETREAD
-typedef struct {
-        /* IN */
-        void* data;
-        /* IN / OUT */
-        size_t len;
-        /* OUT */
-        int ret;
-} uhyve_netread_t;
+typedef struct { volatile uint64_t counter; } atomic_uint64_t __attribute__ ((aligned (64)));
 
-// UHYVE_PORT_NETSTAT
-typedef struct {
-        /* IN */
-        int status;
-} uhyve_netstat_t;
+inline static uint64_t atomic_uint64_read(atomic_uint64_t *d) {
+	return d->counter;
+}
+
+inline static int64_t atomic_uint64_inc(atomic_uint64_t* d) {
+	uint64_t res = 1;
+	__asm__ volatile("lock xaddq %0, %1" : "+r"(res), "+m"(d->counter) : : "memory", "cc");
+	return ++res;
+}
+
+typedef struct queue_inner {
+	uint16_t len;
+	uint8_t data[UHYVE_NET_MTU+34];
+} queue_inner_t;
+
+typedef struct shared_queue {
+	atomic_uint64_t read;
+	atomic_uint64_t written;
+	uint8_t reserved[64-8];
+	queue_inner_t inner[UHYVE_QUEUE_SIZE];
+} shared_queue_t;
 
 /*
  * Helper struct to hold private data used to operate your ethernet interface.
  */
-// NETIF state struct
 typedef struct uhyve_netif {
 	struct eth_addr *ethaddr;
 	/* Add whatever per-interface state that is needed here. */
-	uint8_t rx_buf[RX_BUF_LEN + 16];
 } uhyve_netif_t;
 
 #endif

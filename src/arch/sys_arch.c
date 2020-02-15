@@ -82,9 +82,7 @@ sys_thread_t sys_thread_new(const char *name, lwip_thread_fn thread, void *arg,
 
 	// Spawn a task on core 0, which is guaranteed to be the boot processor.
 	err = sys_spawn(&id, (entry_point_t)thread, arg, prio, 0);
-
-	// Register the returned task ID as the TCP/IP task to HermitCore.
-	sys_lwip_register_tcpip_task(id);
+	LWIP_ASSERT("lwIP sys_thread_new isn't able to create TCP/IP thread", err == 0);
 
 	return id;
 }

@@ -6,7 +6,7 @@
 #include <hermit/syscall.h>
 
 #define EWOULDBLOCK	EAGAIN	/* Operation would block */
-#define HIGH_PRIO 16
+#define HIGH_PRIO 3
 
 typedef struct
 {
