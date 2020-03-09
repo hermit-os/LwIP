@@ -93,9 +93,7 @@ static err_t uhyve_netif_output(struct netif* netif, struct pbuf* p)
 	}
 	tx_queue->inner[idx].len = p->tot_len;
 	atomic_uint64_inc(&tx_queue->written);
-	if (written == atomic_uint64_read(&tx_queue->read)) {
-		outportl(UHYVE_PORT_NETWRITE, 0);
-	}
+	outportl(UHYVE_PORT_NETWRITE, 0);
 
 #if ETH_PAD_SIZE
 	pbuf_header(p, ETH_PAD_SIZE); /* reclaim the padding word */
@@ -123,7 +121,7 @@ void uhyve_netif_poll(void)
 	uint64_t read = atomic_uint64_read(&receive_queue->read);
 	uint64_t distance = written - read;
 
-	while (distance > 0) {
+	if (distance > 0) {
 		uint64_t idx = read % UHYVE_QUEUE_SIZE;
 		uint16_t len = receive_queue->inner[idx].len;
 
@@ -158,9 +156,7 @@ void uhyve_netif_poll(void)
 			LINK_STATS_INC(link.drop);
 		}
 
-		read = atomic_uint64_inc(&receive_queue->read);
-		written = atomic_uint64_read(&receive_queue->written);
-		distance = written - read;
+		atomic_uint64_inc(&receive_queue->read);
 	}
 
 	eoi();
